@@ -1,0 +1,749 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../../../core/theme/app_theme.dart';
+import '../../../domain/models/provider_response.dart';
+import '../../../domain/models/service_request.dart';
+import '../../core/widgets/empty_state_widget.dart';
+import '../../core/widgets/error_retry_widget.dart';
+import '../../core/widgets/status_badge.dart';
+import 'request_detail_view_model.dart';
+
+class RequestDetailScreen extends StatefulWidget {
+  const RequestDetailScreen({
+    super.key,
+    required this.onEditRequest,
+    required this.onRequestChanged,
+  });
+
+  final Future<ServiceRequest?> Function(ServiceRequest request) onEditRequest;
+  final VoidCallback onRequestChanged;
+
+  @override
+  State<RequestDetailScreen> createState() => _RequestDetailScreenState();
+}
+
+class _RequestDetailScreenState extends State<RequestDetailScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  final _quoteSearchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _quoteSearchController.dispose();
+    super.dispose();
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  Future<void> _openNegotiationDialog(
+    RequestDetailViewModel vm,
+    ProviderResponse quote,
+  ) async {
+    final msgController = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            4,
+            16,
+            MediaQuery.of(ctx).viewInsets.bottom + 16,
+          ),
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.62,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Messages with ${quote.providerName}',
+                  style: Theme.of(ctx)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Quote: \$${quote.quotedPrice.toStringAsFixed(0)} • ${quote.estimatedDuration}',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const Divider(height: 20),
+                Expanded(
+                  child: quote.messages.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No messages yet. Ask a question or propose a counter-offer.',
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: quote.messages.length,
+                          itemBuilder: (_, idx) {
+                            final m = quote.messages[idx];
+                            final align = m.senderIsClient
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start;
+                            final bg = m.senderIsClient
+                                ? Theme.of(ctx).colorScheme.primaryContainer
+                                : Theme.of(ctx)
+                                    .colorScheme
+                                    .surfaceContainerHighest;
+                            return Column(
+                              crossAxisAlignment: align,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 280),
+                                  decoration: BoxDecoration(
+                                    color: bg,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        m.senderName,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(m.text),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: msgController,
+                        decoration: const InputDecoration(
+                          hintText: 'Write a message or counter-offer...',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      onPressed: () async {
+                        final text = msgController.text.trim();
+                        if (text.isEmpty) return;
+                        Navigator.pop(ctx);
+                        final ok = await vm.sendMessage(quote, text);
+                        if (ok && mounted) {
+                          widget.onRequestChanged();
+                          _showSnack('Message sent to ${quote.providerName}');
+                        }
+                      },
+                      icon: const Icon(Icons.send_rounded),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    msgController.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<RequestDetailViewModel>();
+    final req = vm.request;
+    final quotes = vm.filteredResponses;
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(req.id),
+        actions: [
+          if (req.status == RequestStatus.open ||
+              req.status == RequestStatus.quoted)
+            IconButton(
+              tooltip: 'Edit Requirement',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () async {
+                final updated = await widget.onEditRequest(req);
+                if (updated != null) {
+                  vm.applyUpdatedRequest(updated);
+                  widget.onRequestChanged();
+                }
+              },
+            ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: 'Responses (${quotes.length})'),
+            const Tab(text: 'Details & Timeline'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // TAB 1: Provider Responses
+          RefreshIndicator(
+            onRefresh: vm.loadResponses,
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _quoteSearchController,
+                            onChanged: vm.updateQuoteSearch,
+                            decoration: const InputDecoration(
+                              hintText: 'Search quotes or providers...',
+                              prefixIcon: Icon(Icons.search_rounded),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        PopupMenuButton<QuoteSortOption>(
+                          initialValue: vm.sortOption,
+                          onSelected: vm.setSortOption,
+                          icon: const Icon(Icons.sort_rounded),
+                          itemBuilder: (_) => QuoteSortOption.values
+                              .map(
+                                (o) => PopupMenuItem(
+                                  value: o,
+                                  child: Text(o.label),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (vm.isLoading)
+                  const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (vm.errorMessage != null)
+                  SliverFillRemaining(
+                    child: ErrorRetryWidget(
+                      message: vm.errorMessage!,
+                      onRetry: vm.loadResponses,
+                    ),
+                  )
+                else if (quotes.isEmpty)
+                  SliverFillRemaining(
+                    child: EmptyStateWidget(
+                      icon: Icons.mark_chat_unread_outlined,
+                      title: 'No matching quotes yet',
+                      subtitle:
+                          'Providers are reviewing your brief. You can also request an additional quote now.',
+                      actionLabel: 'Request Quote Now',
+                      onAction: () async {
+                        final ok = await vm.requestFreshQuote();
+                        if (ok && mounted) {
+                          widget.onRequestChanged();
+                          _showSnack('New provider quote received!');
+                        }
+                      },
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 90),
+                    sliver: SliverList.separated(
+                      itemCount: quotes.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, idx) {
+                        final quote = quotes[idx];
+                        return _QuoteCard(
+                          quote: quote,
+                          clientMaxBudget: req.budgetMax,
+                          isBusy: vm.isActionBusy,
+                          canDecide: req.status == RequestStatus.open ||
+                              req.status == RequestStatus.quoted,
+                          onAccept: () async {
+                            final ok = await vm.acceptQuote(quote);
+                            if (ok && mounted) {
+                              widget.onRequestChanged();
+                              _showSnack(
+                                'Accepted quote from ${quote.providerName}!',
+                              );
+                            }
+                          },
+                          onDecline: () async {
+                            final ok = await vm.declineQuote(quote);
+                            if (ok && mounted) {
+                              widget.onRequestChanged();
+                              _showSnack('Quote declined.');
+                            }
+                          },
+                          onMessage: () => _openNegotiationDialog(vm, quote),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // TAB 2: Request Overview, Lifecycle Actions & Timeline
+          ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
+            children: [
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          StatusBadge.fromRequestStatus(req.status),
+                          const Spacer(),
+                          Text(
+                            req.urgency.label,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        req.title,
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        req.description,
+                        style: textTheme.bodyMedium?.copyWith(height: 1.45),
+                      ),
+                      const Divider(height: 24),
+                      _DetailRow(
+                        icon: Icons.payments_outlined,
+                        label: 'Target Budget',
+                        value:
+                            '\$${req.budgetMin.toStringAsFixed(0)} – \$${req.budgetMax.toStringAsFixed(0)}',
+                      ),
+                      _DetailRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Preferred Date',
+                        value: DateFormat.yMMMEd().format(req.preferredDate),
+                      ),
+                      _DetailRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Location',
+                        value: req.location,
+                      ),
+                      _DetailRow(
+                        icon: Icons.email_outlined,
+                        label: 'Contact',
+                        value: '${req.contactEmail} • ${req.contactPhone}',
+                      ),
+                      if (req.customAnswers.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: req.customAnswers.entries
+                              .map(
+                                (e) => Chip(
+                                  label: Text('${e.key}: ${e.value}'),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Lifecycle Actions
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  if (req.status == RequestStatus.open ||
+                      req.status == RequestStatus.quoted)
+                    OutlinedButton.icon(
+                      onPressed: vm.isActionBusy
+                          ? null
+                          : () async {
+                              final ok = await vm.requestFreshQuote();
+                              if (ok && mounted) {
+                                widget.onRequestChanged();
+                                _showSnack('New provider quote received!');
+                              }
+                            },
+                      icon: const Icon(Icons.auto_awesome_rounded),
+                      label: const Text('Get More Quotes'),
+                    ),
+                  if (req.status == RequestStatus.inProgress)
+                    FilledButton.icon(
+                      onPressed: vm.isActionBusy
+                          ? null
+                          : () async {
+                              final ok = await vm.markCompleted();
+                              if (ok && mounted) {
+                                widget.onRequestChanged();
+                                _showSnack('Request marked as completed!');
+                              }
+                            },
+                      icon: const Icon(Icons.check_circle_rounded),
+                      label: const Text('Mark Completed'),
+                    ),
+                  if (req.status == RequestStatus.open ||
+                      req.status == RequestStatus.quoted)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                      ),
+                      onPressed: vm.isActionBusy
+                          ? null
+                          : () async {
+                              final ok = await vm.cancelRequest();
+                              if (ok && mounted) {
+                                widget.onRequestChanged();
+                                _showSnack('Request cancelled.');
+                              }
+                            },
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel Request'),
+                    ),
+                  if (req.status == RequestStatus.cancelled)
+                    FilledButton.tonalIcon(
+                      onPressed: vm.isActionBusy
+                          ? null
+                          : () async {
+                              final ok = await vm.reopenRequest();
+                              if (ok && mounted) {
+                                widget.onRequestChanged();
+                                _showSnack('Request reopened.');
+                              }
+                            },
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Reopen Request'),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 22),
+              Text(
+                'Activity Timeline',
+                style:
+                    textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              ...req.timeline.reversed.map(
+                (event) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event.title,
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              event.subtitle,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              DateFormat.MMMd().add_jm().format(event.timestamp),
+                              style: textTheme.labelSmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 17, color: colors.primary),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: colors.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuoteCard extends StatelessWidget {
+  const _QuoteCard({
+    required this.quote,
+    required this.clientMaxBudget,
+    required this.isBusy,
+    required this.canDecide,
+    required this.onAccept,
+    required this.onDecline,
+    required this.onMessage,
+  });
+
+  final ProviderResponse quote;
+  final double clientMaxBudget;
+  final bool isBusy;
+  final bool canDecide;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+  final VoidCallback onMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final withinBudget = quote.quotedPrice <= clientMaxBudget;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: colors.primaryContainer,
+                  child: Text(
+                    quote.providerName.substring(0, 1),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: colors.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              quote.providerName,
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (quote.isVerified) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.verified_rounded,
+                              size: 15,
+                              color: AppColors.info,
+                            ),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        '${quote.rating.toStringAsFixed(1)} ★ • ${quote.completedJobs} jobs',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                StatusBadge.fromQuoteStatus(quote.status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  '\$${quote.quotedPrice.toStringAsFixed(0)}',
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: colors.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: (withinBudget ? AppColors.success : AppColors.warning)
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    withinBudget ? 'Within Budget' : 'Above Max Budget',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: withinBudget
+                          ? AppColors.success
+                          : AppColors.warning,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  quote.estimatedDuration,
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              quote.message,
+              style: textTheme.bodyMedium?.copyWith(height: 1.4),
+            ),
+            if (quote.deliverables.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ...quote.deliverables.map(
+                (d) => Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 15,
+                        color: AppColors.success,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(d, style: textTheme.bodySmall),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: isBusy ? null : onMessage,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                  label: Text('Chat (${quote.messages.length})'),
+                ),
+                const Spacer(),
+                if (canDecide &&
+                    (quote.status == QuoteStatus.pending ||
+                        quote.status == QuoteStatus.negotiating)) ...[
+                  TextButton(
+                    onPressed: isBusy ? null : onDecline,
+                    child: const Text('Decline'),
+                  ),
+                  const SizedBox(width: 6),
+                  FilledButton(
+                    onPressed: isBusy ? null : onAccept,
+                    child: const Text('Accept Quote'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
