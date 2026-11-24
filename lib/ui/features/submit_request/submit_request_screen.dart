@@ -7,6 +7,7 @@ import '../../../core/utils/validators.dart';
 import '../../../domain/models/service_category.dart';
 import '../../../domain/models/service_item.dart';
 import '../../../domain/models/service_request.dart';
+import '../auth/auth_view_model.dart';
 import 'submit_request_view_model.dart';
 
 class SubmitRequestScreen extends StatefulWidget {
@@ -51,6 +52,7 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
     final edit = widget.editingRequest;
     final srv = widget.linkedService;
     final pkg = widget.selectedPackage;
+    final user = context.read<AuthViewModel>().currentUser;
 
     if (edit != null) {
       _category = edit.category;
@@ -74,16 +76,18 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
       final base = pkg?.price ?? srv.basePrice;
       _budgetMinController.text = (base * 0.9).round().toString();
       _budgetMaxController.text = (base * 1.25).round().toString();
-      _locationController.text =
-          srv.location.contains('Remote') ? 'Remote' : '';
-      _emailController.text = 'garv.client@example.com';
-      _phoneController.text = '+1 555-019-2834';
+      _locationController.text = srv.location.contains('Remote')
+          ? 'Remote'
+          : (user?.defaultAddress ?? '');
+      _emailController.text = user?.email ?? 'garv.client@example.com';
+      _phoneController.text = user?.phone ?? '+1 555-019-2834';
     } else {
       _category = ServiceCategory.homeRepair;
       _urgency = RequestUrgency.normal;
       _preferredDate = DateTime.now().add(const Duration(days: 2));
-      _emailController.text = 'garv.client@example.com';
-      _phoneController.text = '+1 555-019-2834';
+      _locationController.text = user?.defaultAddress ?? '';
+      _emailController.text = user?.email ?? 'garv.client@example.com';
+      _phoneController.text = user?.phone ?? '+1 555-019-2834';
     }
   }
 

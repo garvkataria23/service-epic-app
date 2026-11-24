@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/app_theme.dart';
+import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/services/local_storage_service.dart';
+import '../../domain/models/app_notification.dart';
 import '../../domain/models/service_item.dart';
 import '../../domain/models/service_request.dart';
+import 'auth/auth_view_model.dart';
 import 'discovery/discovery_screen.dart';
 import 'discovery/discovery_view_model.dart';
+import 'payment/transactions_screen.dart';
 import 'request_detail/request_detail_screen.dart';
 import 'request_detail/request_detail_view_model.dart';
 import 'requests/requests_screen.dart';
@@ -102,9 +108,114 @@ class _HomeShellState extends State<HomeShell> {
     }
   }
 
+  Future<void> _openNotificationsSheet() async {
+    final paymentRepo = context.read<PaymentRepository>();
+    final requestsVm = context.read<RequestsViewModel>();
+    final notifs = paymentRepo.getNotifications();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.65,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Text(
+                    'Notifications',
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () async {
+                      await paymentRepo.markAllNotificationsRead();
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text('Mark all read'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: notifs.isEmpty
+                  ? const Center(child: Text('No notifications yet.'))
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: notifs.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (_, idx) {
+                        final n = notifs[idx];
+                        return ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          tileColor: n.isRead
+                              ? null
+                              : Theme.of(ctx)
+                                  .colorScheme
+                                  .primaryContainer
+                                  .withValues(alpha: 0.3),
+                          leading: Icon(_notifIcon(n.type),
+                              color: AppColors.primary),
+                          title: Text(
+                            n.title,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(n.body),
+                              const SizedBox(height: 2),
+                              Text(
+                                DateFormat.MMMd().add_jm().format(n.createdAt),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            if (n.relatedRequestId != null) {
+                              final req = requestsVm.allRequests
+                                  .where((r) => r.id == n.relatedRequestId)
+                                  .firstOrNull;
+                              if (req != null) _openRequestDetail(req);
+                            }
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  IconData _notifIcon(NotificationType type) {
+    return switch (type) {
+      NotificationType.quote => Icons.local_offer_rounded,
+      NotificationType.message => Icons.chat_bubble_outline_rounded,
+      NotificationType.payment => Icons.verified_user_rounded,
+      NotificationType.status => Icons.notifications_active_outlined,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final requestsVm = context.watch<RequestsViewModel>();
+    final paymentRepo = context.read<PaymentRepository>();
+    final unreadNotifs =
+        paymentRepo.getNotifications().where((n) => !n.isRead).length;
 
     return Scaffold(
       body: IndexedStack(
@@ -114,12 +225,15 @@ class _HomeShellState extends State<HomeShell> {
             onRequestService: (srv, pkg) =>
                 _openSubmitFlow(service: srv, package: pkg),
             onPostCustomRequest: () => _openSubmitFlow(),
+            unreadNotifications: unreadNotifs,
+            onNotificationsTap: _openNotificationsSheet,
           ),
           RequestsScreen(
             onOpenRequestDetail: _openRequestDetail,
             onCreateRequest: () => _openSubmitFlow(),
           ),
-          _SettingsTab(
+          const TransactionsScreen(),
+          _ProfileTab(
             isDarkMode: widget.isDarkMode,
             onToggleDarkMode: widget.onToggleDarkMode,
           ),
@@ -148,9 +262,14 @@ class _HomeShellState extends State<HomeShell> {
             label: 'Requests',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.tune_outlined),
-            selectedIcon: Icon(Icons.tune_rounded),
-            label: 'Settings',
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+            label: 'Wallet',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: 'Profile',
           ),
         ],
       ),
@@ -158,8 +277,8 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-class _SettingsTab extends StatefulWidget {
-  const _SettingsTab({
+class _ProfileTab extends StatefulWidget {
+  const _ProfileTab({
     required this.isDarkMode,
     required this.onToggleDarkMode,
   });
@@ -168,22 +287,141 @@ class _SettingsTab extends StatefulWidget {
   final ValueChanged<bool> onToggleDarkMode;
 
   @override
-  State<_SettingsTab> createState() => _SettingsTabState();
+  State<_ProfileTab> createState() => _ProfileTabState();
 }
 
-class _SettingsTabState extends State<_SettingsTab> {
+class _ProfileTabState extends State<_ProfileTab> {
+  Future<void> _editProfileDialog(AuthViewModel authVm) async {
+    final user = authVm.currentUser;
+    if (user == null) return;
+    final nameCtrl = TextEditingController(text: user.fullName);
+    final phoneCtrl = TextEditingController(text: user.phone);
+    final cityCtrl = TextEditingController(text: user.city);
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(labelText: 'Full Name'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: phoneCtrl,
+              decoration: const InputDecoration(labelText: 'Phone'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: cityCtrl,
+              decoration: const InputDecoration(labelText: 'City'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await authVm.updateProfile(
+                user.copyWith(
+                  fullName: nameCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                  city: cityCtrl.text.trim(),
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    nameCtrl.dispose();
+    phoneCtrl.dispose();
+    cityCtrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final authVm = context.watch<AuthViewModel>();
+    final user = authVm.currentUser;
     final storage = context.read<LocalStorageService>();
     final discoveryVm = context.read<DiscoveryViewModel>();
     final requestsVm = context.read<RequestsViewModel>();
     final simulateError = storage.simulateApiError;
+    final colors = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings & Diagnostics')),
+      appBar: AppBar(title: const Text('Account & Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (user != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: colors.primaryContainer,
+                      child: Text(
+                        user.fullName.isNotEmpty
+                            ? user.fullName[0].toUpperCase()
+                            : 'U',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: colors.onPrimaryContainer,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.fullName,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            user.email,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            '${user.city} • ${user.savedCards.length} saved card(s)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Edit Profile',
+                      onPressed: () => _editProfileDialog(authVm),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 16),
           Card(
             child: Column(
               children: [
@@ -199,7 +437,7 @@ class _SettingsTabState extends State<_SettingsTab> {
                   secondary: const Icon(Icons.wifi_off_rounded),
                   title: const Text('Simulate API / Network Error'),
                   subtitle: const Text(
-                    'Enable to test error handling, validation & retry flows',
+                    'Enable to test error handling, payment failure & retry flows',
                   ),
                   value: simulateError,
                   onChanged: (val) async {
@@ -212,47 +450,42 @@ class _SettingsTabState extends State<_SettingsTab> {
           ),
           const SizedBox(height: 16),
           Card(
-            child: ListTile(
-              leading: const Icon(Icons.restore_rounded),
-              title: const Text('Reset Demo Data'),
-              subtitle: const Text(
-                'Restore initial sample services, requests, and provider quotes',
-              ),
-              onTap: () async {
-                await storage.clearAllData();
-                await storage.setSimulateApiError(false);
-                await discoveryVm.loadServices(forceRefresh: true);
-                await requestsVm.loadRequests();
-                if (!context.mounted) return;
-                setState(() {});
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Demo data restored!'),
-                    behavior: SnackBarBehavior.floating,
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.restore_rounded),
+                  title: const Text('Reset Demo Data'),
+                  subtitle: const Text(
+                    'Restore initial services, requests, quotes & escrow ledger',
                   ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Architecture Highlights',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(14),
-              child: Text(
-                '• Clean MVVM + Repository Pattern with Provider\n'
-                '• Typed AppException & Result<T> error handling\n'
-                '• Smart Search Engine: Damerau-Levenshtein fuzzy matching, synonym intent expansion, & natural language filter parsing\n'
-                '• Local-first persistence with REST API client adapter',
-                style: TextStyle(height: 1.5),
-              ),
+                  onTap: () async {
+                    await storage.clearAllData();
+                    await storage.setSimulateApiError(false);
+                    await discoveryVm.loadServices(forceRefresh: true);
+                    await requestsVm.loadRequests();
+                    if (!context.mounted) return;
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Demo data restored!'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+                  title: const Text(
+                    'Sign Out',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: authVm.signOut,
+                ),
+              ],
             ),
           ),
         ],

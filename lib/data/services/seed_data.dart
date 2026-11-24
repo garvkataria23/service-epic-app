@@ -1,7 +1,10 @@
+import '../../domain/models/app_notification.dart';
+import '../../domain/models/payment_transaction.dart';
 import '../../domain/models/provider_response.dart';
 import '../../domain/models/service_category.dart';
 import '../../domain/models/service_item.dart';
 import '../../domain/models/service_request.dart';
+import '../../domain/models/user_profile.dart';
 
 class SeedData {
   SeedData._();
@@ -714,6 +717,111 @@ class SeedData {
         ],
         status: QuoteStatus.accepted,
         createdAt: now.subtract(const Duration(days: 8)),
+      ),
+    ];
+  }
+
+  static UserProfile demoUser() {
+    final now = DateTime.now();
+    return UserProfile(
+      id: 'USR-001',
+      fullName: 'Garv Sharma',
+      email: 'garv.client@example.com',
+      phone: '+1 555-019-2834',
+      city: 'San Francisco, CA',
+      walletBalance: 2500.00,
+      savedAddresses: const [
+        SavedAddress(
+          id: 'ADDR-1',
+          label: 'Home',
+          fullAddress: 'Apt 4B, Maplewood Heights, Sector 14',
+          isDefault: true,
+        ),
+        SavedAddress(
+          id: 'ADDR-2',
+          label: 'Office',
+          fullAddress: '221B Oakridge Avenue, Suite 300',
+        ),
+      ],
+      savedCards: const [
+        SavedCard(
+          id: 'CARD-1',
+          brand: 'Visa',
+          last4: '4242',
+          expiry: '08/29',
+          holderName: 'GARV SHARMA',
+        ),
+      ],
+      joinedAt: now.subtract(const Duration(days: 120)),
+    );
+  }
+
+  static List<PaymentTransaction> initialTransactions() {
+    final now = DateTime.now();
+    return [
+      PaymentTransaction(
+        id: 'TXN-90214',
+        requestId: 'REQ-1038',
+        quoteId: 'QUO-503',
+        providerName: 'PixelCraft Studio',
+        serviceTitle: 'Client portal MVP with smart search & push alerts',
+        subtotal: 1180.00,
+        platformFee: 35.40,
+        discount: 0,
+        totalAmount: 1215.40,
+        method: PaymentMethodType.card,
+        methodDetail: 'Visa •••• 4242',
+        status: EscrowStatus.heldInEscrow,
+        createdAt: now.subtract(const Duration(days: 2)),
+      ),
+      PaymentTransaction(
+        id: 'TXN-88412',
+        requestId: 'REQ-1025',
+        quoteId: 'QUO-505',
+        providerName: 'SparkleNest Crew',
+        serviceTitle: 'Post-renovation 2BHK deep cleaning',
+        subtotal: 145.00,
+        platformFee: 4.35,
+        discount: 14.50,
+        totalAmount: 134.85,
+        method: PaymentMethodType.wallet,
+        methodDetail: 'ServiceEpic Wallet',
+        status: EscrowStatus.released,
+        promoCode: 'EPIC10',
+        createdAt: now.subtract(const Duration(days: 7)),
+      ),
+    ];
+  }
+
+  static List<AppNotification> initialNotifications() {
+    final now = DateTime.now();
+    return [
+      AppNotification(
+        id: 'NOTIF-1',
+        title: 'New Quote Received (\$125)',
+        body: 'AquaFlow Pro Services quoted \$125 for Kitchen sink pipe leak.',
+        type: NotificationType.quote,
+        createdAt: now.subtract(const Duration(hours: 1)),
+        isRead: false,
+        relatedRequestId: 'REQ-1042',
+      ),
+      AppNotification(
+        id: 'NOTIF-2',
+        title: 'Provider Reply from PixelCraft Studio',
+        body: 'Confirmed! We have started Milestone 1 and will share the first build shortly.',
+        type: NotificationType.message,
+        createdAt: now.subtract(const Duration(days: 1)),
+        isRead: false,
+        relatedRequestId: 'REQ-1038',
+      ),
+      AppNotification(
+        id: 'NOTIF-3',
+        title: 'Escrow Payment Secured',
+        body: '\$1,215.40 is safely held in Escrow for REQ-1038.',
+        type: NotificationType.payment,
+        createdAt: now.subtract(const Duration(days: 2)),
+        isRead: true,
+        relatedRequestId: 'REQ-1038',
       ),
     ];
   }

@@ -17,11 +17,15 @@ class DiscoveryScreen extends StatefulWidget {
     super.key,
     required this.onRequestService,
     required this.onPostCustomRequest,
+    this.unreadNotifications = 0,
+    this.onNotificationsTap,
   });
 
   final void Function(ServiceItem service, ServicePackage? selectedPackage)
       onRequestService;
   final VoidCallback onPostCustomRequest;
+  final int unreadNotifications;
+  final VoidCallback? onNotificationsTap;
 
   @override
   State<DiscoveryScreen> createState() => _DiscoveryScreenState();
@@ -103,6 +107,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                           ],
                         ),
                       ),
+                      if (widget.onNotificationsTap != null)
+                        Badge(
+                          isLabelVisible: widget.unreadNotifications > 0,
+                          label: Text('${widget.unreadNotifications}'),
+                          child: IconButton(
+                            tooltip: 'Notifications',
+                            onPressed: widget.onNotificationsTap,
+                            icon: const Icon(Icons.notifications_outlined),
+                          ),
+                        ),
+                      const SizedBox(width: 4),
                       FilledButton.tonalIcon(
                         onPressed: widget.onPostCustomRequest,
                         icon: const Icon(Icons.add_rounded, size: 18),

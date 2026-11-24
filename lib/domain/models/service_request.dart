@@ -83,6 +83,8 @@ class ServiceRequest {
     required this.createdAt,
     required this.updatedAt,
     this.timeline = const [],
+    this.clientRating,
+    this.clientReview,
   });
 
   final String id;
@@ -103,6 +105,8 @@ class ServiceRequest {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<TimelineEvent> timeline;
+  final double? clientRating;
+  final String? clientReview;
 
   ServiceRequest copyWith({
     String? title,
@@ -119,6 +123,8 @@ class ServiceRequest {
     RequestStatus? status,
     DateTime? updatedAt,
     List<TimelineEvent>? timeline,
+    double? clientRating,
+    String? clientReview,
   }) {
     return ServiceRequest(
       id: id,
@@ -139,6 +145,8 @@ class ServiceRequest {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       timeline: timeline ?? this.timeline,
+      clientRating: clientRating ?? this.clientRating,
+      clientReview: clientReview ?? this.clientReview,
     );
   }
 
@@ -166,6 +174,8 @@ class ServiceRequest {
       timeline: (json['timeline'] as List<dynamic>? ?? const [])
           .map((e) => TimelineEvent.fromJson(e as Map<String, dynamic>))
           .toList(),
+      clientRating: (json['clientRating'] as num?)?.toDouble(),
+      clientReview: json['clientReview'] as String?,
     );
   }
 
@@ -188,5 +198,7 @@ class ServiceRequest {
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'timeline': timeline.map((e) => e.toJson()).toList(),
+        'clientRating': clientRating,
+        'clientReview': clientReview,
       };
 }

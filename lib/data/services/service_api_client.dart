@@ -33,6 +33,8 @@ class ServiceApiClient {
     if (!_storage.isSeeded) {
       await _storage.saveRequests(SeedData.initialRequests());
       await _storage.saveResponses(SeedData.initialResponses());
+      await _storage.saveTransactions(SeedData.initialTransactions());
+      await _storage.saveNotifications(SeedData.initialNotifications());
       await _storage.markSeeded();
     }
   }

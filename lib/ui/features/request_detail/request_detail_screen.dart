@@ -3,11 +3,14 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../data/repositories/payment_repository.dart';
+import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/provider_response.dart';
 import '../../../domain/models/service_request.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_retry_widget.dart';
 import '../../core/widgets/status_badge.dart';
+import '../payment/checkout_screen.dart';
 import 'request_detail_view_model.dart';
 
 class RequestDetailScreen extends StatefulWidget {
@@ -46,6 +49,88 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  Future<void> _openCompleteAndReviewDialog(
+    RequestDetailViewModel vm,
+    ServiceRequest req,
+  ) async {
+    var selectedRating = 5.0;
+    final reviewController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Complete & Release Escrow'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Confirm that the service was delivered satisfactorily. Escrow funds will be released to the provider.',
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Rate Provider:',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) {
+                  final star = i + 1;
+                  return IconButton(
+                    onPressed: () =>
+                        setDialogState(() => selectedRating = star.toDouble()),
+                    icon: Icon(
+                      star <= selectedRating
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      color: AppColors.accentAmber,
+                      size: 30,
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reviewController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Write a short review (optional)',
+                  hintText: 'Share your experience...',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirm & Release'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final paymentRepo = context.read<PaymentRepository>();
+      await paymentRepo.releaseEscrowForRequest(req.id);
+      final ok = await vm.completeWithReview(
+        rating: selectedRating,
+        review: reviewController.text,
+      );
+      if (ok && mounted) {
+        widget.onRequestChanged();
+        _showSnack('Completed! Escrow released & review saved.');
+      }
+    }
+    reviewController.dispose();
   }
 
   Future<void> _openNegotiationDialog(
@@ -295,11 +380,21 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                           canDecide: req.status == RequestStatus.open ||
                               req.status == RequestStatus.quoted,
                           onAccept: () async {
+                            final txn =
+                                await Navigator.of(context).push<PaymentTransaction>(
+                              MaterialPageRoute(
+                                builder: (_) => CheckoutScreen(
+                                  request: req,
+                                  quote: quote,
+                                ),
+                              ),
+                            );
+                            if (txn == null || !mounted) return;
                             final ok = await vm.acceptQuote(quote);
                             if (ok && mounted) {
                               widget.onRequestChanged();
                               _showSnack(
-                                'Accepted quote from ${quote.providerName}!',
+                                'Paid \$${txn.totalAmount.toStringAsFixed(2)} in Escrow & started with ${quote.providerName}!',
                               );
                             }
                           },
@@ -422,15 +517,9 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                     FilledButton.icon(
                       onPressed: vm.isActionBusy
                           ? null
-                          : () async {
-                              final ok = await vm.markCompleted();
-                              if (ok && mounted) {
-                                widget.onRequestChanged();
-                                _showSnack('Request marked as completed!');
-                              }
-                            },
+                          : () => _openCompleteAndReviewDialog(vm, req),
                       icon: const Icon(Icons.check_circle_rounded),
-                      label: const Text('Mark Completed'),
+                      label: const Text('Mark Completed & Release Escrow'),
                     ),
                   if (req.status == RequestStatus.open ||
                       req.status == RequestStatus.quoted)

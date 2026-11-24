@@ -197,6 +197,48 @@ class RequestDetailViewModel extends ChangeNotifier {
         subtitle: 'Client confirmed service delivery',
       );
 
+  Future<bool> completeWithReview({
+    required double rating,
+    required String review,
+  }) async {
+    _isActionBusy = true;
+    notifyListeners();
+
+    final now = DateTime.now();
+    final updated = _request.copyWith(
+      status: RequestStatus.completed,
+      clientRating: rating,
+      clientReview: review.trim().isEmpty ? null : review.trim(),
+      updatedAt: now,
+      timeline: [
+        ..._request.timeline,
+        TimelineEvent(
+          title: 'Service Completed (${rating.toStringAsFixed(1)} ★)',
+          subtitle: review.trim().isEmpty
+              ? 'Client confirmed delivery & released escrow'
+              : '"${review.trim()}" — Escrow released',
+          timestamp: now,
+        ),
+      ],
+    );
+
+    final res = await _repository.updateRequest(updated);
+    _isActionBusy = false;
+
+    final ok = res.when(
+      success: (saved) {
+        _request = saved;
+        return true;
+      },
+      failure: (err) {
+        _errorMessage = err.message;
+        return false;
+      },
+    );
+    notifyListeners();
+    return ok;
+  }
+
   Future<bool> cancelRequest() => _transition(
         RequestStatus.cancelled,
         title: 'Request Cancelled',

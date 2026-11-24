@@ -123,4 +123,87 @@ class Validators {
     }
     return null;
   }
+
+  static String? password(String? value) {
+    final v = value ?? '';
+    if (v.isEmpty) return 'Password is required.';
+    if (v.length < 6) return 'Password must be at least 6 characters.';
+    return null;
+  }
+
+  static String? confirmPassword(String? value, String original) {
+    if (value == null || value.isEmpty) return 'Please confirm your password.';
+    if (value != original) return 'Passwords do not match.';
+    return null;
+  }
+
+  static String? cardNumber(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return 'Card number is required.';
+    if (digits.length < 13 || digits.length > 19) {
+      return 'Enter a valid 13–19 digit card number.';
+    }
+    if (!_luhnCheck(digits)) {
+      return 'Invalid card number (failed checksum).';
+    }
+    return null;
+  }
+
+  static String detectCardBrand(String number) {
+    final digits = number.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('4')) return 'Visa';
+    if (RegExp(r'^(5[1-5]|2[2-7])').hasMatch(digits)) return 'Mastercard';
+    if (digits.startsWith('34') || digits.startsWith('37')) return 'Amex';
+    if (digits.startsWith('6')) return 'Discover';
+    return 'Card';
+  }
+
+  static bool _luhnCheck(String digits) {
+    var sum = 0;
+    var alternate = false;
+    for (var i = digits.length - 1; i >= 0; i--) {
+      var n = int.parse(digits[i]);
+      if (alternate) {
+        n *= 2;
+        if (n > 9) n -= 9;
+      }
+      sum += n;
+      alternate = !alternate;
+    }
+    return sum % 10 == 0;
+  }
+
+  static String? cardExpiry(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(trimmed)) {
+      return 'Use MM/YY format.';
+    }
+    final parts = trimmed.split('/');
+    final month = int.tryParse(parts[0]) ?? 0;
+    final year = 2000 + (int.tryParse(parts[1]) ?? 0);
+    if (month < 1 || month > 12) return 'Invalid month (01–12).';
+    final now = DateTime.now();
+    final expiryEnd = DateTime(year, month + 1, 0);
+    if (expiryEnd.isBefore(DateTime(now.year, now.month, now.day))) {
+      return 'Card has expired.';
+    }
+    return null;
+  }
+
+  static String? cardCvv(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (!RegExp(r'^\d{3,4}$').hasMatch(trimmed)) {
+      return 'Enter 3 or 4 digit CVV.';
+    }
+    return null;
+  }
+
+  static String? upiId(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return 'UPI ID is required.';
+    if (!RegExp(r'^[a-zA-Z0-9._-]{2,}@[a-zA-Z]{2,}$').hasMatch(trimmed)) {
+      return 'Enter a valid UPI ID (e.g., garv@okaxis).';
+    }
+    return null;
+  }
 }
