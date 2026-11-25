@@ -135,9 +135,10 @@ class _AuthScreenState extends State<AuthScreen>
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
@@ -306,6 +307,7 @@ class _AuthScreenState extends State<AuthScreen>
               labelText: 'Email Address',
               hintText: 'name@example.com',
               prefixIcon: Icon(Icons.email_outlined),
+              errorMaxLines: 2,
             ),
           ),
           const SizedBox(height: 14),
@@ -316,6 +318,7 @@ class _AuthScreenState extends State<AuthScreen>
             autofillHints: const [AutofillHints.password],
             decoration: InputDecoration(
               labelText: 'Password',
+              errorMaxLines: 2,
               prefixIcon: const Icon(Icons.lock_outline_rounded),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -371,12 +374,12 @@ class _AuthScreenState extends State<AuthScreen>
         children: [
           TextFormField(
             controller: _regName,
-            validator: (v) =>
-                Validators.requiredText(v, fieldName: 'Full name', minLength: 2),
+            validator: Validators.fullName,
             textCapitalization: TextCapitalization.words,
             decoration: const InputDecoration(
               labelText: 'Full Name *',
               prefixIcon: Icon(Icons.person_outline_rounded),
+              errorMaxLines: 2,
             ),
           ),
           const SizedBox(height: 12),
@@ -387,6 +390,7 @@ class _AuthScreenState extends State<AuthScreen>
             decoration: const InputDecoration(
               labelText: 'Email Address *',
               prefixIcon: Icon(Icons.email_outlined),
+              errorMaxLines: 2,
             ),
           ),
           const SizedBox(height: 12),
@@ -397,6 +401,7 @@ class _AuthScreenState extends State<AuthScreen>
             decoration: const InputDecoration(
               labelText: 'Phone Number *',
               prefixIcon: Icon(Icons.phone_outlined),
+              errorMaxLines: 2,
             ),
           ),
           const SizedBox(height: 12),
@@ -406,6 +411,7 @@ class _AuthScreenState extends State<AuthScreen>
             decoration: const InputDecoration(
               labelText: 'City / Default Address *',
               prefixIcon: Icon(Icons.location_city_outlined),
+              errorMaxLines: 2,
             ),
           ),
           const SizedBox(height: 12),
@@ -416,6 +422,7 @@ class _AuthScreenState extends State<AuthScreen>
             onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               labelText: 'Password *',
+              errorMaxLines: 2,
               prefixIcon: const Icon(Icons.lock_outline_rounded),
               suffixIcon: IconButton(
                 icon: Icon(

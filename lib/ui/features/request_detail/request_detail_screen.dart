@@ -246,32 +246,35 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            4,
-            16,
-            MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          child: SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.62,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Messages with ${quote.providerName}',
-                  style: Theme.of(ctx)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Quote: \$${quote.quotedPrice.toStringAsFixed(0)} • ${quote.estimatedDuration}',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                      ),
-                ),
+        final currency = context.read<CurrencyController>();
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              4,
+              16,
+              MediaQuery.viewInsetsOf(ctx).bottom + 16,
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(ctx).size.height * 0.62,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Messages with ${quote.providerName}',
+                    style: Theme.of(ctx)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Quote: ${currency.format(quote.quotedPrice)} • ${quote.estimatedDuration}',
+                    style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
                 const Divider(height: 20),
                 Expanded(
                   child: quote.messages.isEmpty
@@ -383,6 +386,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
               ],
             ),
           ),
+        ),
         );
       },
     );
@@ -419,7 +423,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
           controller: _tabController,
           tabs: [
             Tab(text: 'Responses (${quotes.length})'),
-            const Tab(text: 'Details & Timeline'),
+            const Tab(text: 'Details'),
           ],
         ),
       ),
@@ -654,9 +658,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                           runSpacing: 6,
                           children: req.customAnswers.entries
                               .map(
-                                (e) => Chip(
-                                  label: Text('${e.key}: ${e.value}'),
-                                  visualDensity: VisualDensity.compact,
+                                (e) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.surfaceContainerHighest
+                                        .withValues(alpha: 0.45),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: colors.outlineVariant
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '${e.key}: ${e.value}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
                                 ),
                               )
                               .toList(),
@@ -861,7 +880,7 @@ class _DetailRow extends StatelessWidget {
           Icon(icon, size: 17, color: colors.primary),
           const SizedBox(width: 8),
           SizedBox(
-            width: 105,
+            width: 84,
             child: Text(
               label,
               style: TextStyle(

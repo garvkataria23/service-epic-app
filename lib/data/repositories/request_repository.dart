@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../../core/errors/app_exception.dart';
 import '../../domain/models/provider_response.dart';
 import '../../domain/models/service_request.dart';
+import '../services/firestore_sync_service.dart';
 import '../services/service_api_client.dart';
 
 class RequestRepository {
@@ -54,6 +55,7 @@ class RequestRepository {
   Future<Result<ServiceRequest>> submitRequest(ServiceRequest draft) async {
     try {
       final created = await _apiClient.createRequest(draft);
+      FirestoreSyncService.syncRequest(created);
       return Success(created);
     } on AppException catch (e) {
       return Failure(e);
@@ -65,6 +67,7 @@ class RequestRepository {
   Future<Result<ServiceRequest>> updateRequest(ServiceRequest updated) async {
     try {
       final saved = await _apiClient.updateRequest(updated);
+      FirestoreSyncService.syncRequest(saved);
       return Success(saved);
     } on AppException catch (e) {
       return Failure(e);

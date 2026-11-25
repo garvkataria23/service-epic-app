@@ -59,7 +59,7 @@ void main() {
     await tester.tap(find.text('One-Tap Demo Client Login'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    expect(find.text('Discover Services'), findsOneWidget);
+    expect(find.text('Discover'), findsWidgets);
     expect(find.text('Requests'), findsOneWidget);
     expect(find.text('Wallet'), findsOneWidget);
     expect(find.text('Account'), findsOneWidget);

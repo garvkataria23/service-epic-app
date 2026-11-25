@@ -187,6 +187,7 @@ class CartOrderRepository {
     );
     final txns = _storage.loadTransactions()..insert(0, txn);
     await _storage.saveTransactions(txns);
+    FirestoreSyncService.syncTransaction(txn);
 
     await _paymentRepository.addNotification(
       AppNotification(
@@ -217,6 +218,7 @@ class CartOrderRepository {
       returnOrReplaceReason: 'Cancelled: $trimmed',
     );
     await _database.upsertOrder(updated);
+    FirestoreSyncService.syncOrder(updated);
     await _paymentRepository.refundEscrowForReference(
       order.id,
       user: user,
@@ -245,6 +247,7 @@ class CartOrderRepository {
           : order.status,
     );
     await _database.upsertOrder(updated);
+    FirestoreSyncService.syncOrder(updated);
     await _paymentRepository.addNotification(
       AppNotification(
         id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
@@ -275,6 +278,7 @@ class CartOrderRepository {
         progressStep: 1,
       );
       await _database.upsertOrder(updated);
+      FirestoreSyncService.syncOrder(updated);
       await _paymentRepository.addNotification(
         AppNotification(
           id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
@@ -293,6 +297,7 @@ class CartOrderRepository {
       returnOrReplaceReason: trimmed,
     );
     await _database.upsertOrder(updated);
+    FirestoreSyncService.syncOrder(updated);
     final activeUser = user ?? _storage.loadUserProfile();
     if (activeUser != null) {
       await _paymentRepository.refundEscrowForReference(
@@ -323,6 +328,7 @@ class CartOrderRepository {
       status: nextStatus,
     );
     await _database.upsertOrder(updated);
+    FirestoreSyncService.syncOrder(updated);
     if (nextStep >= 4) {
       await _paymentRepository.releaseEscrowForRequest(order.id);
     }

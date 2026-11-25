@@ -57,7 +57,7 @@ void main() {
     // 1. Auth -> Demo Login
     await tester.tap(find.text('One-Tap Demo Client Login'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
-    expect(find.text('Discover Services'), findsOneWidget);
+    expect(find.text('Discover'), findsWidgets);
     expect(find.text('₹ INR'), findsOneWidget);
 
     // Verify one-tap currency pill in Discovery header

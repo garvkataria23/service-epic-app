@@ -128,7 +128,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('REQ-').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Details & Timeline'));
+    await tester.tap(find.text('Details'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Back').first);
     await tester.pumpAndSettle();

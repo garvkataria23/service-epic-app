@@ -119,7 +119,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                'Discover Services',
+                                'Discover',
                                 maxLines: 1,
                                 style: textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.w800,
@@ -159,6 +159,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                   ctx.watch<CartViewModel>().totalItemCount;
                               return Badge(
                                 isLabelVisible: cartCount > 0,
+                                offset: const Offset(-4, 4),
                                 label: Text('$cartCount'),
                                 child: IconButton(
                                   visualDensity: VisualDensity.compact,
@@ -181,6 +182,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                           if (widget.onNotificationsTap != null)
                             Badge(
                               isLabelVisible: widget.unreadNotifications > 0,
+                              offset: const Offset(-4, 4),
                               label: Text('${widget.unreadNotifications}'),
                               child: IconButton(
                                 visualDensity: VisualDensity.compact,
@@ -192,7 +194,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                 ),
                               ),
                             ),
-                          const SizedBox(width: 2),
+                          const SizedBox(width: 8),
                           FilledButton.tonalIcon(
                             style: FilledButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
@@ -212,7 +214,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Smart search by skill, budget, rating or intent',
+                        'Verified pros • Escrow protected',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodySmall?.copyWith(

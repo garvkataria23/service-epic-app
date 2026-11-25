@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:service_epic/core/utils/currency_formatter.dart';
 import 'package:service_epic/core/utils/smart_brief_generator.dart';
+import 'package:service_epic/core/utils/validators.dart';
 import 'package:service_epic/domain/models/service_category.dart';
 import 'package:service_epic/domain/models/service_order.dart';
 import 'package:service_epic/domain/models/service_request.dart';
@@ -59,6 +60,11 @@ void main() {
       expect(ServiceOrder.progressStages.length, 5);
       expect(ServiceOrder.progressStages.first, 'Confirmed');
       expect(ServiceOrder.progressStages.last, 'Completed');
+    });
+
+    test('Validators.fullName rejects numeric-only input like 133', () {
+      expect(Validators.fullName('133'), isNotNull);
+      expect(Validators.fullName('Garv Sharma'), isNull);
     });
   });
 }

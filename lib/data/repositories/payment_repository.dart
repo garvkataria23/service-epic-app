@@ -7,6 +7,7 @@ import '../../domain/models/payment_transaction.dart';
 import '../../domain/models/provider_response.dart';
 import '../../domain/models/service_request.dart';
 import '../../domain/models/user_profile.dart';
+import '../services/firestore_sync_service.dart';
 import '../services/local_storage_service.dart';
 
 class PaymentRepository {
@@ -124,6 +125,7 @@ class PaymentRepository {
 
     final txns = _storage.loadTransactions()..insert(0, txn);
     await _storage.saveTransactions(txns);
+    FirestoreSyncService.syncTransaction(txn);
 
     await addNotification(
       AppNotification(
@@ -147,6 +149,7 @@ class PaymentRepository {
       if (txns[i].requestId == requestId &&
           txns[i].status == EscrowStatus.heldInEscrow) {
         txns[i] = txns[i].copyWith(status: EscrowStatus.released);
+        FirestoreSyncService.syncTransaction(txns[i]);
         changed = true;
       }
     }
@@ -180,6 +183,7 @@ class PaymentRepository {
           (txns[i].status == EscrowStatus.heldInEscrow ||
               txns[i].status == EscrowStatus.released)) {
         txns[i] = txns[i].copyWith(status: EscrowStatus.refunded);
+        FirestoreSyncService.syncTransaction(txns[i]);
         refundedAmount += txns[i].totalAmount;
       }
     }

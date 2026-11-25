@@ -186,6 +186,24 @@ class AuthRepository {
     return const Success(null);
   }
 
+  String _friendlyAuthError(FirebaseAuthException e, {String fallback = 'Authentication failed.'}) {
+    return switch (e.code) {
+      'invalid-credential' ||
+      'wrong-password' ||
+      'user-not-found' =>
+        'Incorrect email or password. Please try again or tap Forgot Password.',
+      'invalid-email' => 'Please enter a valid email address.',
+      'email-already-in-use' =>
+        'An account with this email already exists. Please Sign In instead.',
+      'weak-password' =>
+        'Password is too weak. Use 8+ chars with uppercase, number & symbol.',
+      'too-many-requests' =>
+        'Too many attempts. Please wait a minute before trying again.',
+      'user-disabled' => 'This account has been disabled.',
+      _ => e.message ?? fallback,
+    };
+  }
+
   Future<Result<UserProfile>> signIn({
     required String email,
     required String password,
@@ -216,7 +234,7 @@ class AuthRepository {
           );
         }
         return Failure(
-          ValidationException(e.message ?? 'Authentication failed.'),
+          ValidationException(_friendlyAuthError(e)),
         );
       } catch (_) {
         // Fallback to local session if Firebase plugin isn't bound (e.g., tests)
@@ -294,7 +312,9 @@ class AuthRepository {
           );
         }
         return Failure(
-          ValidationException(e.message ?? 'Registration failed.'),
+          ValidationException(
+            _friendlyAuthError(e, fallback: 'Registration failed.'),
+          ),
         );
       } catch (_) {}
     } else {

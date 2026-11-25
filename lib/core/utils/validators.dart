@@ -106,7 +106,21 @@ class Validators {
       return 'Contact email is required.';
     }
     if (!_emailRegex.hasMatch(trimmed)) {
-      return 'Enter a valid email address (e.g., name@example.com).';
+      return 'Enter a valid email (e.g. name@gmail.com).';
+    }
+    return null;
+  }
+
+  static String? fullName(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return 'Full name is required.';
+    }
+    if (trimmed.length < 2) {
+      return 'Full name must be at least 2 characters.';
+    }
+    if (!RegExp(r'[a-zA-Z].*[a-zA-Z]').hasMatch(trimmed)) {
+      return 'Enter your real name (letters required).';
     }
     return null;
   }
