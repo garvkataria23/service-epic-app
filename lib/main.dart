@@ -1,7 +1,9 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/config/app_env.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/payment_repository.dart';
@@ -9,6 +11,7 @@ import 'data/repositories/request_repository.dart';
 import 'data/repositories/service_repository.dart';
 import 'data/services/local_storage_service.dart';
 import 'data/services/service_api_client.dart';
+import 'firebase_options.dart';
 import 'ui/features/auth/auth_screen.dart';
 import 'ui/features/auth/auth_view_model.dart';
 import 'ui/features/discovery/discovery_view_model.dart';
@@ -17,6 +20,16 @@ import 'ui/features/requests/requests_view_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppEnv.load();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    AppEnv.firebaseInitialized = true;
+  } catch (_) {
+    AppEnv.firebaseInitialized = false;
+  }
+
   final prefs = await SharedPreferences.getInstance();
   final storage = LocalStorageService(prefs);
   final apiClient = ServiceApiClient(storage: storage);

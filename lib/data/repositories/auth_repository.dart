@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/config/app_env.dart';
 import '../../core/errors/app_exception.dart';
 import '../../domain/models/user_profile.dart';
 import '../services/local_storage_service.dart';
@@ -21,39 +23,75 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 450));
     if (_storage.simulateApiError) {
       return const Failure(
         NetworkException('Unable to reach authentication server.'),
       );
     }
 
+    String? firebaseUid;
+    String? firebaseToken;
+    String? firebaseDisplayName;
+
+    if (AppEnv.firebaseInitialized) {
+      try {
+        final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+        firebaseUid = cred.user?.uid;
+        firebaseDisplayName = cred.user?.displayName;
+        firebaseToken = await cred.user?.getIdToken();
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'network-request-failed') {
+          return const Failure(
+            NetworkException('Network error connecting to Firebase Auth.'),
+          );
+        }
+        return Failure(
+          ValidationException(e.message ?? 'Authentication failed.'),
+        );
+      } catch (_) {
+        // Fallback to local session if Firebase plugin isn't bound (e.g., tests)
+      }
+    } else {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    }
+
     final existing = _storage.loadUserProfile();
     if (existing != null &&
         existing.email.toLowerCase() == email.trim().toLowerCase()) {
-      await _storage.saveAuthToken('tok_${_uuid.v4()}');
+      await _storage.saveAuthToken(firebaseToken ?? 'tok_${_uuid.v4()}');
       return Success(existing);
     }
 
-    // Create a session profile for any valid email/password login
     final demo = SeedData.demoUser();
     final namePart = email.split('@').first.replaceAll('.', ' ').trim();
-    final formattedName = namePart.isEmpty
-        ? 'Client User'
-        : namePart
-            .split(' ')
-            .where((w) => w.isNotEmpty)
-            .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
-            .join(' ');
+    final formattedName = firebaseDisplayName?.isNotEmpty == true
+        ? firebaseDisplayName!
+        : (namePart.isEmpty
+            ? 'Client User'
+            : namePart
+                .split(' ')
+                .where((w) => w.isNotEmpty)
+                .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+                .join(' '));
 
-    final profile = demo.copyWith(
+    final profile = UserProfile(
+      id: firebaseUid ?? 'USR-${_uuid.v4().substring(0, 6).toUpperCase()}',
       fullName: email.trim().toLowerCase() == demo.email
           ? demo.fullName
           : formattedName,
       email: email.trim().toLowerCase(),
+      phone: demo.phone,
+      city: demo.city,
+      walletBalance: demo.walletBalance,
+      savedAddresses: demo.savedAddresses,
+      savedCards: demo.savedCards,
+      joinedAt: DateTime.now(),
     );
     await _storage.saveUserProfile(profile);
-    await _storage.saveAuthToken('tok_${_uuid.v4()}');
+    await _storage.saveAuthToken(firebaseToken ?? 'tok_${_uuid.v4()}');
     return Success(profile);
   }
 
@@ -64,15 +102,40 @@ class AuthRepository {
     required String city,
     required String password,
   }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (_storage.simulateApiError) {
       return const Failure(
         NetworkException('Unable to reach registration server.'),
       );
     }
 
+    String? firebaseUid;
+    String? firebaseToken;
+
+    if (AppEnv.firebaseInitialized) {
+      try {
+        final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        );
+        await cred.user?.updateDisplayName(fullName.trim());
+        firebaseUid = cred.user?.uid;
+        firebaseToken = await cred.user?.getIdToken();
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'network-request-failed') {
+          return const Failure(
+            NetworkException('Network error connecting to Firebase Auth.'),
+          );
+        }
+        return Failure(
+          ValidationException(e.message ?? 'Registration failed.'),
+        );
+      } catch (_) {}
+    } else {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+    }
+
     final profile = UserProfile(
-      id: 'USR-${_uuid.v4().substring(0, 6).toUpperCase()}',
+      id: firebaseUid ?? 'USR-${_uuid.v4().substring(0, 6).toUpperCase()}',
       fullName: fullName.trim(),
       email: email.trim().toLowerCase(),
       phone: phone.trim(),
@@ -90,8 +153,21 @@ class AuthRepository {
       joinedAt: DateTime.now(),
     );
     await _storage.saveUserProfile(profile);
-    await _storage.saveAuthToken('tok_${_uuid.v4()}');
+    await _storage.saveAuthToken(firebaseToken ?? 'tok_${_uuid.v4()}');
     return Success(profile);
+  }
+
+  Future<Result<void>> sendPasswordReset(String email) async {
+    if (AppEnv.firebaseInitialized) {
+      try {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+      } on FirebaseAuthException catch (e) {
+        return Failure(
+          ValidationException(e.message ?? 'Could not send reset email.'),
+        );
+      } catch (_) {}
+    }
+    return const Success(null);
   }
 
   Future<Result<UserProfile>> signInDemo() async {
@@ -103,6 +179,11 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
+    if (AppEnv.firebaseInitialized) {
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
     await _storage.saveAuthToken(null);
   }
 

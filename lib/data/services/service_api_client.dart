@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
+import '../../core/config/app_env.dart';
 import '../../core/errors/app_exception.dart';
 import '../../domain/models/provider_response.dart';
 import '../../domain/models/service_item.dart';
@@ -157,7 +160,25 @@ class ServiceApiClient {
     existingResponses.addAll(generated);
     await _storage.saveResponses(existingResponses);
 
+    unawaited(_syncRequestToFirestore(created));
     return created;
+  }
+
+  Future<void> _syncRequestToFirestore(ServiceRequest req) async {
+    if (!AppEnv.firebaseInitialized) return;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      await FirebaseFirestore.instance
+          .collection('service_epic_requests')
+          .doc(req.id)
+          .set({
+        ...req.toJson(),
+        'ownerUid': uid,
+      });
+    } catch (_) {
+      // Gracefully keep local-first persistence if Firestore rules restrict custom collections
+    }
   }
 
   /// PATCH /api/v1/requests/:id

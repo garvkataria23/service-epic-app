@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/app_env.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/request_repository.dart';
@@ -486,6 +487,34 @@ class _ProfileTabState extends State<_ProfileTab> {
                   onTap: authVm.signOut,
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cloud & Trial Environment (.env)',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Firebase Project: ${AppEnv.firebaseProjectId} (${AppEnv.firebaseInitialized ? "Initialized" : "Local Fallback"})',
+                    style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+                  ),
+                  Text(
+                    'MongoDB URI: ${AppEnv.mongoDbUri}',
+                    style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+                  ),
+                  Text(
+                    'Razorpay Test Key: ${AppEnv.razorpayKeyId}',
+                    style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
