@@ -1,11 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../../core/config/app_env.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/repositories/cart_order_repository.dart';
 import '../../../data/repositories/payment_repository.dart';
@@ -58,6 +60,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isProcessing = false;
   String? _errorBanner;
   Razorpay? _razorpay;
+
+  static const List<String> _timeSlots = [
+    '9:00 AM – 11:00 AM',
+    '10:00 AM – 12:00 PM',
+    '2:00 PM – 4:00 PM',
+    '5:00 PM – 7:00 PM',
+  ];
+  String _selectedSlot = '10:00 AM – 12:00 PM';
 
   @override
   void initState() {
@@ -172,6 +182,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         promoCode: _appliedPromo,
         newCardToSave: cardToSave,
         clearCartAfter: widget.clearCartAfter,
+        preferredSlot: _selectedSlot,
       );
 
       if (!mounted) return;
@@ -203,6 +214,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               builder: (_) => _PaymentReceiptScreen(
                 transaction: txn,
                 isOrder: true,
+                preferredSlot: order.preferredSlot,
+                jobStartPin: order.jobStartPin,
               ),
             ),
           );
@@ -383,6 +396,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
+    final currency = context.watch<CurrencyController>();
     final user = authVm.currentUser;
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -463,7 +477,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                             ),
                             Text(
-                              '\$${item.lineTotal.toStringAsFixed(2)}',
+                              currency.formatExact(item.lineTotal),
                               style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ],
@@ -485,21 +499,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ],
                   const Divider(height: 22),
-                  _PriceRow('Quoted Amount', '\$${_subtotal.toStringAsFixed(2)}'),
+                  _PriceRow('Quoted Amount', currency.formatExact(_subtotal)),
                   _PriceRow(
                     'Escrow Protection Fee (3%)',
-                    '\$${_platformFee.toStringAsFixed(2)}',
+                    currency.formatExact(_platformFee),
                   ),
                   if (_discount > 0)
                     _PriceRow(
                       'Promo ($_appliedPromo)',
-                      '-\$${_discount.toStringAsFixed(2)}',
+                      '-${currency.formatExact(_discount)}',
                       valueColor: AppColors.success,
                     ),
                   const Divider(height: 18),
                   _PriceRow(
                     'Total Payable',
-                    '\$${_total.toStringAsFixed(2)}',
+                    currency.formatExact(_total),
                     isBold: true,
                     valueColor: colors.primary,
                   ),
@@ -507,6 +521,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
           ),
+
+          if (widget.isDirectOrder) ...[
+            const SizedBox(height: 14),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 18,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Preferred Arrival / Kickoff Slot',
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _timeSlots.map((slot) {
+                        final selected = _selectedSlot == slot;
+                        return ChoiceChip(
+                          label: Text(slot),
+                          selected: selected,
+                          onSelected: (_) =>
+                              setState(() => _selectedSlot = slot),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 14),
 
@@ -758,7 +816,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             style: TextStyle(fontSize: 12),
                           ),
                           Text(
-                            '\$${(user?.walletBalance ?? 0).toStringAsFixed(2)}',
+                            currency.formatExact(user?.walletBalance ?? 0),
                             style: textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: colors.primary,
@@ -772,13 +830,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         await authVm.topUpWallet(500);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Added \$500.00 to Wallet!'),
+                          SnackBar(
+                            content: Text(
+                              'Added ${currency.formatExact(500)} to Wallet!',
+                            ),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
                       },
-                      child: const Text('+ \$500'),
+                      child: Text('+ ${currency.format(500)}'),
                     ),
                   ],
                 ),
@@ -813,7 +873,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             label: Text(
               _isProcessing
                   ? 'Processing Secure Payment...'
-                  : 'Pay \$${_total.toStringAsFixed(2)} in Escrow',
+                  : 'Pay ${currency.formatExact(_total)} in Escrow',
             ),
           ),
         ),
@@ -868,18 +928,24 @@ class _PaymentReceiptScreen extends StatelessWidget {
   const _PaymentReceiptScreen({
     required this.transaction,
     this.isOrder = false,
+    this.preferredSlot,
+    this.jobStartPin,
   });
 
   final PaymentTransaction transaction;
   final bool isOrder;
+  final String? preferredSlot;
+  final String? jobStartPin;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final currency = context.watch<CurrencyController>();
+    final formattedTotal = currency.formatExact(transaction.totalAmount);
     return Scaffold(
       appBar: AppBar(title: const Text('Payment Receipt')),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
@@ -910,7 +976,7 @@ class _PaymentReceiptScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '\$${transaction.totalAmount.toStringAsFixed(2)}',
+                      formattedTotal,
                       style: textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.w900,
                         color: AppColors.primary,
@@ -920,17 +986,62 @@ class _PaymentReceiptScreen extends StatelessWidget {
                     const Divider(),
                     _PriceRow('Transaction ID', transaction.id),
                     _PriceRow(
-                        isOrder ? 'Order ID' : 'Request ID',
-                        transaction.requestId),
+                      isOrder ? 'Order ID' : 'Request ID',
+                      transaction.requestId,
+                    ),
                     _PriceRow('Provider', transaction.providerName),
                     _PriceRow('Payment Method', transaction.methodDetail),
-                    _PriceRow('Status', transaction.status.label,
-                        valueColor: AppColors.success),
+                    if (preferredSlot != null)
+                      _PriceRow('Arrival Slot', preferredSlot!),
+                    if (jobStartPin != null)
+                      _PriceRow(
+                        'Job-Start PIN',
+                        jobStartPin!,
+                        isBold: true,
+                        valueColor: AppColors.primary,
+                      ),
+                    _PriceRow(
+                      'Status',
+                      transaction.status.label,
+                      valueColor: AppColors.success,
+                    ),
                     _PriceRow(
                       'Date',
                       DateFormat.yMMMd().add_jm().format(transaction.createdAt),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final summary = [
+                            'EPIC INFOCUS — ESCROW INVOICE',
+                            'Txn ID: ${transaction.id}',
+                            '${isOrder ? 'Order' : 'Request'}: ${transaction.requestId}',
+                            'Service: ${transaction.serviceTitle}',
+                            'Provider: ${transaction.providerName}',
+                            'Amount: $formattedTotal (${currency.currency.code})',
+                            'Method: ${transaction.methodDetail}',
+                            if (preferredSlot != null) 'Slot: $preferredSlot',
+                            if (jobStartPin != null)
+                              'Job-Start PIN: $jobStartPin',
+                            'Status: ${transaction.status.label}',
+                            'Date: ${DateFormat.yMMMd().add_jm().format(transaction.createdAt)}',
+                          ].join('\n');
+                          await Clipboard.setData(ClipboardData(text: summary));
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Invoice copied to clipboard!'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        label: const Text('Copy Invoice'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(

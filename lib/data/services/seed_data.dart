@@ -1063,6 +1063,9 @@ class SeedData {
       transactionId: 'TXN-88412',
       status: OrderStatus.completed,
       promoCode: 'EPIC10',
+      preferredSlot: '10:00 AM – 12:00 PM',
+      jobStartPin: '6142',
+      progressStep: 4,
       createdAt: now.subtract(const Duration(days: 3)),
     );
   }

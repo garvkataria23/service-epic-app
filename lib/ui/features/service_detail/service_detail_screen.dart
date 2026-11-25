@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/cart_item.dart';
 import '../../../domain/models/service_item.dart';
 import '../cart/cart_screen.dart';
@@ -105,6 +106,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final cartVm = context.watch<CartViewModel>();
+    final currency = context.watch<CurrencyController>();
     final selectedPkg = _effectivePackage;
     final totalPreview = selectedPkg.price * _quantity;
 
@@ -404,7 +406,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                                   children: [
                                     if (pkg.originalPrice != null) ...[
                                       Text(
-                                        '\$${pkg.originalPrice!.toStringAsFixed(0)}',
+                                        currency.format(pkg.originalPrice!),
                                         style: TextStyle(
                                           fontSize: 12,
                                           decoration:
@@ -415,7 +417,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                                       const SizedBox(width: 6),
                                     ],
                                     Text(
-                                      '\$${pkg.price.toStringAsFixed(0)}',
+                                      currency.format(pkg.price),
                                       style: textTheme.titleMedium?.copyWith(
                                         fontWeight: FontWeight.w800,
                                         color: colors.primary,
@@ -651,7 +653,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                         ?.copyWith(color: colors.onSurfaceVariant),
                   ),
                   Text(
-                    '\$${totalPreview.toStringAsFixed(0)}',
+                    currency.format(totalPreview),
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: colors.primary,

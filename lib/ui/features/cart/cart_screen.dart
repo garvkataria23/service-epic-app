@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../domain/models/service_order.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../payment/checkout_screen.dart';
@@ -144,6 +145,7 @@ class _CartScreenState extends State<CartScreen>
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<CartViewModel>();
+    final currency = context.watch<CurrencyController>();
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -292,7 +294,7 @@ class _CartScreenState extends State<CartScreen>
                                       ),
                                       const SizedBox(width: 12),
                                       Text(
-                                        '\$${item.lineTotal.toStringAsFixed(0)}',
+                                        currency.format(item.lineTotal),
                                         style: textTheme.titleMedium?.copyWith(
                                           fontWeight: FontWeight.w800,
                                           color: colors.primary,
@@ -332,7 +334,7 @@ class _CartScreenState extends State<CartScreen>
                               ),
                             ),
                             Text(
-                              '\$${vm.subtotal.toStringAsFixed(2)}',
+                              currency.formatExact(vm.subtotal),
                               style: textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
                                 color: colors.primary,
@@ -435,11 +437,102 @@ class _CartScreenState extends State<CartScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Paid \$${order.totalAmount.toStringAsFixed(2)} via ${order.paymentDetail} • ${DateFormat.MMMd().format(order.createdAt)}',
+                              'Paid ${currency.formatExact(order.totalAmount)} via ${order.paymentDetail} • ${DateFormat.MMMd().format(order.createdAt)}',
                               style: textTheme.bodySmall?.copyWith(
                                 color: colors.onSurfaceVariant,
                               ),
                             ),
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: colors.primaryContainer
+                                        .withValues(alpha: 0.45),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.schedule_rounded,
+                                        size: 13,
+                                        color: colors.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        order.preferredSlot,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: colors.onPrimaryContainer,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 9,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.pin_outlined,
+                                        size: 13,
+                                        color: AppColors.secondary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Start PIN: ${order.jobStartPin}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.secondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            _OrderProgressStepper(
+                              currentStep: order.progressStep,
+                            ),
+                            if (order.progressStep <
+                                    ServiceOrder.progressStages.length - 1 &&
+                                canReturnOrReplace) ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: () =>
+                                      vm.advanceOrderProgress(order),
+                                  icon: const Icon(
+                                    Icons.fast_forward_rounded,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    'Advance Stage (${ServiceOrder.progressStages[order.progressStep + 1]})',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
                             if (order.returnOrReplaceReason != null) ...[
                               const SizedBox(height: 8),
                               Container(
@@ -513,5 +606,88 @@ class _CartScreenState extends State<CartScreen>
       OrderStatus.replacementScheduled => AppColors.accentAmber,
       OrderStatus.refunded => AppColors.error,
     };
+  }
+}
+
+class _OrderProgressStepper extends StatelessWidget {
+  const _OrderProgressStepper({required this.currentStep});
+
+  final int currentStep;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final stages = ServiceOrder.progressStages;
+    final clamped = currentStep.clamp(0, stages.length - 1);
+    final progress = (clamped + 1) / stages.length;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.track_changes_rounded,
+                size: 14,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Stage ${clamped + 1}/${stages.length}: ${stages[clamped]}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                '${(progress * 100).round()}%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: clamped == stages.length - 1
+                      ? AppColors.success
+                      : colors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              color: clamped == stages.length - 1
+                  ? AppColors.success
+                  : colors.primary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: List.generate(stages.length, (i) {
+              final done = i <= clamped;
+              return Text(
+                '${done ? '✓' : '○'} ${stages[i]}',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: done ? FontWeight.w700 : FontWeight.w500,
+                  color: done ? AppColors.success : colors.onSurfaceVariant,
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
   }
 }

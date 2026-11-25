@@ -36,6 +36,9 @@ class ServiceOrder {
     required this.createdAt,
     this.promoCode,
     this.returnOrReplaceReason,
+    this.preferredSlot = '10:00 AM – 12:00 PM',
+    this.jobStartPin = '4829',
+    this.progressStep = 0,
   });
 
   final String id;
@@ -51,10 +54,24 @@ class ServiceOrder {
   final DateTime createdAt;
   final String? promoCode;
   final String? returnOrReplaceReason;
+  final String preferredSlot;
+  final String jobStartPin;
+  final int progressStep;
+
+  static const List<String> progressStages = [
+    'Confirmed',
+    'Specialist Assigned',
+    'In Progress',
+    'Quality Check',
+    'Completed',
+  ];
 
   ServiceOrder copyWith({
     OrderStatus? status,
     String? returnOrReplaceReason,
+    String? preferredSlot,
+    String? jobStartPin,
+    int? progressStep,
   }) =>
       ServiceOrder(
         id: id,
@@ -71,6 +88,9 @@ class ServiceOrder {
         promoCode: promoCode,
         returnOrReplaceReason:
             returnOrReplaceReason ?? this.returnOrReplaceReason,
+        preferredSlot: preferredSlot ?? this.preferredSlot,
+        jobStartPin: jobStartPin ?? this.jobStartPin,
+        progressStep: progressStep ?? this.progressStep,
       );
 
   factory ServiceOrder.fromJson(Map<String, dynamic> json) => ServiceOrder(
@@ -90,6 +110,9 @@ class ServiceOrder {
         createdAt: DateTime.parse(json['createdAt'] as String),
         promoCode: json['promoCode'] as String?,
         returnOrReplaceReason: json['returnOrReplaceReason'] as String?,
+        preferredSlot: json['preferredSlot'] as String? ?? '10:00 AM – 12:00 PM',
+        jobStartPin: json['jobStartPin'] as String? ?? '4829',
+        progressStep: json['progressStep'] as int? ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -106,5 +129,8 @@ class ServiceOrder {
         'createdAt': createdAt.toIso8601String(),
         'promoCode': promoCode,
         'returnOrReplaceReason': returnOrReplaceReason,
+        'preferredSlot': preferredSlot,
+        'jobStartPin': jobStartPin,
+        'progressStep': progressStep,
       };
 }

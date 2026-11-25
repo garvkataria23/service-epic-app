@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/smart_search_engine.dart';
 import '../../../domain/models/service_category.dart';
 import '../../../domain/models/service_item.dart';
@@ -11,6 +12,7 @@ import '../../core/widgets/highlighted_text.dart';
 import '../../core/widgets/smart_search_bar.dart';
 import '../cart/cart_screen.dart';
 import '../cart/cart_view_model.dart';
+import '../compare/compare_screen.dart';
 import '../service_detail/service_detail_screen.dart';
 import 'discovery_view_model.dart';
 
@@ -37,6 +39,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   bool _showSuggestions = false;
+  final Set<String> _compareIds = {};
+
+  void _toggleCompare(String id) {
+    setState(() {
+      if (_compareIds.contains(id)) {
+        _compareIds.remove(id);
+      } else if (_compareIds.length < 3) {
+        _compareIds.add(id);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You can compare up to 3 services at a time.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -407,8 +427,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       return _ServiceCard(
                         match: match,
                         isFavorite: vm.favoriteIds.contains(match.item.id),
+                        isCompared: _compareIds.contains(match.item.id),
                         onToggleFavorite: () =>
                             vm.toggleFavorite(match.item.id),
+                        onToggleCompare: () => _toggleCompare(match.item.id),
                         onTap: () => _openDetail(vm, match.item),
                       );
                     },
@@ -419,6 +441,26 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
         ),
       ),
+      floatingActionButton: _compareIds.length >= 2
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                final selected = vm.results
+                    .map((m) => m.item)
+                    .where((s) => _compareIds.contains(s.id))
+                    .toList();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CompareScreen.services(
+                      services: selected,
+                      onSelectService: (srv) => _openDetail(vm, srv),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.compare_arrows_rounded),
+              label: Text('Compare (${_compareIds.length})'),
+            )
+          : null,
     );
   }
 
@@ -724,7 +766,7 @@ class _FeaturedServiceCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'From \$${service.basePrice.toStringAsFixed(0)}',
+                      'From ${context.watch<CurrencyController>().format(service.basePrice)}',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
@@ -746,13 +788,17 @@ class _ServiceCard extends StatelessWidget {
   const _ServiceCard({
     required this.match,
     required this.isFavorite,
+    required this.isCompared,
     required this.onToggleFavorite,
+    required this.onToggleCompare,
     required this.onTap,
   });
 
   final SmartSearchMatch<ServiceItem> match;
   final bool isFavorite;
+  final bool isCompared;
   final VoidCallback onToggleFavorite;
+  final VoidCallback onToggleCompare;
   final VoidCallback onTap;
 
   @override
@@ -801,6 +847,20 @@ class _ServiceCard extends StatelessWidget {
                                   fontWeight: FontWeight.w700,
                                   height: 1.25,
                                 ),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Compare',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: onToggleCompare,
+                              icon: Icon(
+                                isCompared
+                                    ? Icons.check_circle_rounded
+                                    : Icons.compare_arrows_rounded,
+                                size: 20,
+                                color: isCompared
+                                    ? colors.primary
+                                    : colors.onSurfaceVariant,
                               ),
                             ),
                             IconButton(
@@ -942,7 +1002,8 @@ class _ServiceCard extends StatelessWidget {
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: 'From \$${service.basePrice.toStringAsFixed(0)}',
+                            text:
+                                'From ${context.watch<CurrencyController>().format(service.basePrice)}',
                             style: textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w800,
                               color: colors.primary,

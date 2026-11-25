@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/app_env.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/services/app_database.dart';
 import '../../../data/services/local_storage_service.dart';
@@ -416,6 +417,7 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
+    final currency = context.watch<CurrencyController>();
     final requestsVm = context.watch<RequestsViewModel>();
     final cartVm = context.watch<CartViewModel>();
     final discoveryVm = context.read<DiscoveryViewModel>();
@@ -551,8 +553,7 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                   icon: Icons.account_balance_wallet_rounded,
                   color: AppColors.primary,
                   label: 'Wallet Balance',
-                  value:
-                      '\$${(user?.walletBalance ?? 0).toStringAsFixed(0)}',
+                  value: currency.format(user?.walletBalance ?? 0),
                   onTap: widget.onOpenWalletTab,
                 ),
               ),
@@ -851,6 +852,20 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                       ),
                     );
                   },
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.currency_exchange_rounded),
+                  title: Text(
+                    'Display Currency (${currency.currency.code} ${currency.currency.symbol})',
+                  ),
+                  subtitle: Text(
+                    currency.isInr
+                        ? 'Showing Indian Rupees (₹) • Tap to switch to USD (\$)'
+                        : 'Showing US Dollars (\$) • Tap to switch to INR (₹)',
+                  ),
+                  value: currency.isInr,
+                  onChanged: (_) => currency.toggle(),
                 ),
                 const Divider(height: 1),
                 SwitchListTile(

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/payment_repository.dart';
 import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/provider_response.dart';
@@ -10,6 +11,7 @@ import '../../../domain/models/service_request.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_retry_widget.dart';
 import '../../core/widgets/status_badge.dart';
+import '../compare/compare_screen.dart';
 import '../payment/checkout_screen.dart';
 import 'request_detail_view_model.dart';
 
@@ -319,7 +321,38 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
+                        if (quotes.length >= 2)
+                          IconButton(
+                            tooltip: 'Compare Quotes Side-by-Side',
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => CompareScreen.quotes(
+                                    quotes: quotes.take(3).toList(),
+                                    clientMaxBudget: req.budgetMax,
+                                    onAcceptQuote: (q) async {
+                                      final txn = await Navigator.of(context)
+                                          .push<PaymentTransaction>(
+                                        MaterialPageRoute(
+                                          builder: (_) => CheckoutScreen(
+                                            request: req,
+                                            quote: q,
+                                          ),
+                                        ),
+                                      );
+                                      if (txn == null || !mounted) return;
+                                      final ok = await vm.acceptQuote(q);
+                                      if (ok && mounted) {
+                                        widget.onRequestChanged();
+                                      }
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.compare_arrows_rounded),
+                          ),
                         PopupMenuButton<QuoteSortOption>(
                           initialValue: vm.sortOption,
                           onSelected: vm.setSortOption,
@@ -764,7 +797,7 @@ class _QuoteCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '\$${quote.quotedPrice.toStringAsFixed(0)}',
+                  context.watch<CurrencyController>().format(quote.quotedPrice),
                   style: textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: colors.primary,

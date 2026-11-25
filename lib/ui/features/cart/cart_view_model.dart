@@ -68,4 +68,10 @@ class CartViewModel extends ChangeNotifier {
     _orders = await _repository.getOrders();
     notifyListeners();
   }
+
+  Future<void> advanceOrderProgress(ServiceOrder order) async {
+    await _repository.advanceOrderProgress(order);
+    _orders = await _repository.getOrders();
+    notifyListeners();
+  }
 }

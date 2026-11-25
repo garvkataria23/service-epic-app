@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/smart_brief_generator.dart';
 import '../../../core/utils/validators.dart';
 import '../../../domain/models/service_category.dart';
 import '../../../domain/models/service_item.dart';
@@ -37,6 +38,7 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
   final _locationController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _smartPromptController = TextEditingController();
 
   late ServiceCategory _category;
   late RequestUrgency _urgency;
@@ -110,7 +112,33 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
     _locationController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _smartPromptController.dispose();
     super.dispose();
+  }
+
+  void _applySmartBrief(String raw) {
+    if (raw.trim().isEmpty) return;
+    final generated = SmartBriefGenerator.generate(raw);
+    setState(() {
+      _category = generated.category;
+      _urgency = generated.urgency;
+      _titleController.text = generated.title;
+      _descController.text = generated.description;
+      _budgetMinController.text = generated.budgetMin.toStringAsFixed(0);
+      _budgetMaxController.text = generated.budgetMax.toStringAsFixed(0);
+      _customAnswers
+        ..clear()
+        ..addAll(generated.customAnswers);
+      _attachments
+        ..clear()
+        ..addAll(generated.suggestedAttachments);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Auto-structured brief for ${generated.category.label}!'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _pickDate() async {
@@ -220,6 +248,79 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
           children: [
+            if (!_isEditing && widget.linkedService == null) ...[
+              Card(
+                color: colors.primaryContainer.withValues(alpha: 0.28),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 18,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Smart Brief Auto-Structurer',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: colors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _smartPromptController,
+                              decoration: const InputDecoration(
+                                hintText: 'Describe in 1 line (e.g. pipe leak urgently)',
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: () =>
+                                _applySmartBrief(_smartPromptController.text),
+                            child: const Text('Fill'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          'Kitchen pipe leak urgently',
+                          'Flutter app with login',
+                          'Deep clean 3BHK flat',
+                        ]
+                            .map(
+                              (ex) => ActionChip(
+                                label: Text(ex, style: const TextStyle(fontSize: 11)),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () {
+                                  _smartPromptController.text = ex;
+                                  _applySmartBrief(ex);
+                                },
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             if (widget.linkedService != null) ...[
               Container(
                 padding: const EdgeInsets.all(12),

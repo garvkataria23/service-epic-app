@@ -22,6 +22,7 @@ class LocalStorageService {
   static const _authTokenKey = 'service_epic_auth_token_v1';
   static const _transactionsKey = 'service_epic_transactions_v1';
   static const _notificationsKey = 'service_epic_notifications_v1';
+  static const _currencyKey = 'service_epic_currency_v1';
 
   bool get isSeeded => _prefs.getBool(_seededKey) ?? false;
   Future<void> markSeeded() => _prefs.setBool(_seededKey, true);
@@ -32,6 +33,10 @@ class LocalStorageService {
 
   bool get isDarkMode => _prefs.getBool(_darkModeKey) ?? false;
   Future<void> setDarkMode(bool value) => _prefs.setBool(_darkModeKey, value);
+
+  String get currencyCode => _prefs.getString(_currencyKey) ?? 'INR';
+  Future<void> setCurrencyCode(String code) =>
+      _prefs.setString(_currencyKey, code);
 
   String? get authToken => _prefs.getString(_authTokenKey);
   Future<void> saveAuthToken(String? token) async {

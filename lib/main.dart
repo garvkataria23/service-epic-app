@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/config/app_env.dart';
 import 'core/theme/app_theme.dart';
+import 'core/utils/currency_formatter.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/cart_order_repository.dart';
 import 'data/repositories/payment_repository.dart';
@@ -136,6 +137,9 @@ class _ServiceEpicAppState extends State<ServiceEpicApp> {
         Provider<AuthRepository>.value(value: widget.authRepository),
         Provider<PaymentRepository>.value(value: widget.paymentRepository),
         Provider<CartOrderRepository>.value(value: widget.cartOrderRepository),
+        ChangeNotifierProvider<CurrencyController>(
+          create: (_) => CurrencyController(storage: widget.storage),
+        ),
         ChangeNotifierProvider<AuthViewModel>(
           create: (_) => AuthViewModel(repository: widget.authRepository),
         ),

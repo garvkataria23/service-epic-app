@@ -91,6 +91,7 @@ class CartOrderRepository {
     String? promoCode,
     SavedCard? newCardToSave,
     bool clearCartAfter = false,
+    String preferredSlot = '10:00 AM – 12:00 PM',
   }) async {
     if (items.isEmpty) {
       return const Failure(ValidationException('Your cart is empty.'));
@@ -141,6 +142,7 @@ class CartOrderRepository {
 
     final orderId = 'ORD-${10000 + _random.nextInt(89999)}';
     final txnId = 'TXN-${10000 + _random.nextInt(89999)}';
+    final pin = '${1000 + _random.nextInt(8999)}';
 
     final order = ServiceOrder(
       id: orderId,
@@ -154,6 +156,9 @@ class CartOrderRepository {
       transactionId: txnId,
       status: OrderStatus.confirmed,
       promoCode: discountRate > 0 ? promoCode?.trim().toUpperCase() : null,
+      preferredSlot: preferredSlot,
+      jobStartPin: pin,
+      progressStep: 0,
       createdAt: DateTime.now(),
     );
     await _database.upsertOrder(order);
@@ -222,6 +227,22 @@ class CartOrderRepository {
       ),
     );
 
+    return updated;
+  }
+
+  Future<ServiceOrder> advanceOrderProgress(ServiceOrder order) async {
+    final nextStep = (order.progressStep + 1).clamp(0, 4);
+    final nextStatus = nextStep >= 4
+        ? OrderStatus.completed
+        : (nextStep >= 1 ? OrderStatus.scheduled : OrderStatus.confirmed);
+    final updated = order.copyWith(
+      progressStep: nextStep,
+      status: nextStatus,
+    );
+    await _database.upsertOrder(updated);
+    if (nextStep >= 4) {
+      await _paymentRepository.releaseEscrowForRequest(order.id);
+    }
     return updated;
   }
 }
