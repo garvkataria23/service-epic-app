@@ -280,10 +280,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                         color: colors.onSurfaceVariant,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        service.location,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
+                      Expanded(
+                        child: Text(
+                          service.location,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
@@ -299,12 +301,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           if (service.packages.isNotEmpty) ...[
             Row(
               children: [
-                Text(
-                  'Select Size / Scope Tier',
-                  style: textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                Expanded(
+                  child: Text(
+                    'Select Size / Scope Tier',
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
                     border: Border.all(color: colors.outlineVariant),
@@ -778,9 +782,11 @@ class _MetricPill extends StatelessWidget {
         children: [
           Icon(icon, size: 15, color: iconColor),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

@@ -274,6 +274,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<bool> _showOtpVerificationDialog(String methodLabel) async {
     final otpController = TextEditingController(text: '1234');
+    final currency = context.read<CurrencyController>();
     String? otpError;
     final verified = await showDialog<bool>(
       context: context,
@@ -284,7 +285,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               Icon(Icons.security_rounded, color: AppColors.primary),
               SizedBox(width: 8),
-              Text('3D-Secure Verification'),
+              Expanded(child: Text('3D-Secure Verification')),
             ],
           ),
           content: Column(
@@ -292,7 +293,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Confirm payment of \$${_total.toStringAsFixed(2)} via $methodLabel.',
+                'Confirm payment of ${currency.formatExact(_total)} via $methodLabel.',
               ),
               const SizedBox(height: 8),
               Text(
@@ -539,10 +540,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           color: colors.primary,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Preferred Arrival / Kickoff Slot',
-                          style: textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
+                        Expanded(
+                          child: Text(
+                            'Preferred Arrival / Kickoff Slot',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ],
@@ -901,6 +904,7 @@ class _PriceRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Text(
@@ -911,12 +915,16 @@ class _PriceRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
-              fontSize: isBold ? 17 : 13,
-              color: valueColor,
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+                fontSize: isBold ? 17 : 13,
+                color: valueColor,
+              ),
             ),
           ),
         ],

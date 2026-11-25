@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/service_order.dart';
 import '../../core/widgets/confirmation_banner.dart';
 import '../../core/widgets/empty_state_widget.dart';
@@ -421,13 +420,17 @@ class _CartScreenState extends State<CartScreen>
                                   const SizedBox(height: 10),
                                   Row(
                                     children: [
-                                      Text(
-                                        item.providerName,
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: colors.onSurfaceVariant,
+                                      Expanded(
+                                        child: Text(
+                                          item.providerName,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: colors.onSurfaceVariant,
+                                          ),
                                         ),
                                       ),
-                                      const Spacer(),
+                                      const SizedBox(width: 8),
                                       Container(
                                         decoration: BoxDecoration(
                                           border: Border.all(
@@ -528,8 +531,8 @@ class _CartScreenState extends State<CartScreen>
                         Expanded(
                           child: FilledButton.icon(
                             onPressed: () async {
-                              final txn = await Navigator.of(context)
-                                  .push<PaymentTransaction>(
+                              final prevOrderCount = vm.orders.length;
+                              await Navigator.of(context).push<void>(
                                 MaterialPageRoute(
                                   builder: (_) => CheckoutScreen(
                                     cartItems: List.of(vm.items),
@@ -540,7 +543,8 @@ class _CartScreenState extends State<CartScreen>
                               await vm.refreshOrders();
                               if (mounted && vm.items.isEmpty) {
                                 _tabController.animateTo(1);
-                                if (txn != null && vm.orders.isNotEmpty) {
+                                if (vm.orders.length > prevOrderCount &&
+                                    vm.orders.isNotEmpty) {
                                   final latest = vm.orders.first;
                                   setState(() {
                                     _banner = ConfirmationBannerData(
