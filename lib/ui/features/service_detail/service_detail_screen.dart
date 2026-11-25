@@ -625,17 +625,35 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                  ),
                   onPressed: _handleAddToCart,
-                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
-                  label: const Text('Add to Cart'),
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 17),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Add to Cart'),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                  ),
                   onPressed: _handleBuyNow,
-                  icon: const Icon(Icons.flash_on_rounded, size: 18),
-                  label: const Text('Buy Now'),
+                  icon: const Icon(Icons.flash_on_rounded, size: 17),
+                  label: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Buy Now'),
+                  ),
                 ),
               ),
             ],

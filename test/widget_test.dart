@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,8 +13,14 @@ import 'package:service_epic/data/services/service_api_client.dart';
 import 'package:service_epic/main.dart';
 
 void main() {
-  testWidgets('ServiceEpicApp renders AuthScreen and logs in via Demo Login',
+  testWidgets(
+      'Mobile viewport (360x800): Auth -> Discovery -> Requests -> Wallet -> Account Dashboard with zero overflow',
       (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final storage = LocalStorageService(prefs);
@@ -55,6 +62,20 @@ void main() {
     expect(find.text('Discover Services'), findsOneWidget);
     expect(find.text('Requests'), findsOneWidget);
     expect(find.text('Wallet'), findsOneWidget);
-    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Account'), findsOneWidget);
+
+    // Navigate through all 4 mobile tabs to verify zero layout overflow
+    await tester.tap(find.text('Requests'));
+    await tester.pumpAndSettle();
+    expect(find.text('My Requests'), findsOneWidget);
+
+    await tester.tap(find.text('Wallet'));
+    await tester.pumpAndSettle();
+    expect(find.text('Wallet & Escrow Ledger'), findsOneWidget);
+
+    await tester.tap(find.text('Account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Account Dashboard'), findsOneWidget);
+    expect(find.text('garv.client@example.com'), findsWidgets);
   });
 }

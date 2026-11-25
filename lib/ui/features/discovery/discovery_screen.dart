@@ -95,7 +95,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                           children: [
                             Text(
                               'Discover Services',
-                              style: textTheme.headlineSmall?.copyWith(
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -140,11 +142,21 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                             icon: const Icon(Icons.notifications_outlined),
                           ),
                         ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          visualDensity: VisualDensity.compact,
+                        ),
                         onPressed: widget.onPostCustomRequest,
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: const Text('Post Brief'),
+                        icon: const Icon(Icons.add_rounded, size: 17),
+                        label: const Text(
+                          'Post',
+                          style: TextStyle(fontSize: 13),
+                        ),
                       ),
                     ],
                   ),
@@ -355,20 +367,28 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     child: Row(
                       children: [
-                        Text(
-                          vm.hasActiveSearchOrFilters
-                              ? '${vm.results.length} Smart Matches'
-                              : 'All Services (${vm.results.length})',
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Text(
+                            vm.hasActiveSearchOrFilters
+                                ? '${vm.results.length} Smart Matches'
+                                : 'All Services (${vm.results.length})',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        const Spacer(),
-                        Text(
-                          vm.sortOption.label,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colors.primary,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            vm.sortOption.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -867,50 +887,78 @@ class _ServiceCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.star_rounded,
-                    size: 16,
-                    color: AppColors.accentAmber,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${service.rating.toStringAsFixed(1)} (${service.reviewCount})',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 6,
+                  children: [
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: AppColors.accentAmber,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${service.rating.toStringAsFixed(1)} (${service.reviewCount})',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.bolt_rounded,
+                              size: 15,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              service.formattedResponseTime,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Icon(
-                    Icons.bolt_rounded,
-                    size: 15,
-                    color: colors.primary,
-                  ),
-                  const SizedBox(width: 2),
-                  Text(
-                    service.formattedResponseTime,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.onSurfaceVariant,
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'From \$${service.basePrice.toStringAsFixed(0)}',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: colors.primary,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' / ${service.priceUnit}',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    'From \$${service.basePrice.toStringAsFixed(0)}',
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: colors.primary,
-                    ),
-                  ),
-                  Text(
-                    ' / ${service.priceUnit}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),

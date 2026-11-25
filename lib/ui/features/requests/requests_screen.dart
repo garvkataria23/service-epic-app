@@ -301,41 +301,55 @@ class _RequestCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colors.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: HighlightedText(
-                      text: req.id,
-                      tokens: match.matchedTokens,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    req.category.icon,
-                    size: 15,
-                    color: req.category.color,
-                  ),
-                  const SizedBox(width: 4),
                   Expanded(
-                    child: Text(
-                      req.category.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant,
-                      ),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: HighlightedText(
+                            text: req.id,
+                            tokens: match.matchedTokens,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              req.category.icon,
+                              size: 15,
+                              color: req.category.color,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                req.category.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 6),
                   StatusBadge.fromRequestStatus(req.status),
                 ],
               ),
@@ -360,35 +374,53 @@ class _RequestCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(
-                    Icons.payments_outlined,
-                    size: 15,
-                    color: colors.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '\$${req.budgetMin.toStringAsFixed(0)}–\$${req.budgetMax.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: colors.primary,
+                  Expanded(
+                    child: Wrap(
+                      spacing: 10,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              size: 15,
+                              color: colors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '\$${req.budgetMin.toStringAsFixed(0)}–\$${req.budgetMax.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: colors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_today_outlined,
+                              size: 14,
+                              color: colors.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormat.MMMd().format(req.preferredDate),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 14,
-                    color: colors.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat.MMMd().format(req.preferredDate),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.onSurfaceVariant,
-                    ),
-                  ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 9,
