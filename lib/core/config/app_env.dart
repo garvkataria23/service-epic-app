@@ -26,7 +26,7 @@ class AppEnv {
   }
 
   static String get firebaseProjectId =>
-      _get('FIREBASE_PROJECT_ID', 'veilchat-8c02f');
+      _get('FIREBASE_PROJECT_ID', 'traveltourism-32d7d');
 
   static String get mongoDbUri =>
       _get('MONGODB_URI', 'mongodb://localhost:27018/service_epic');

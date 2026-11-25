@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "75010608480",
+    "project_id": "traveltourism-32d7d",
+    "storage_bucket": "traveltourism-32d7d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:75010608480:android:bb9dfe04044446b6d76205",
+        "android_client_info": {
+          "package_name": "com.garv.serviceepic.service_epic"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "75010608480-2tfvguukaepirg0bc2a93i3dmclv23q6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.garv.serviceepic.service_epic",
+            "certificate_hash": "b8a96b3923d01038c81d26bde0c93bfe021e94b8"
+          }
+        },
+        {
+          "client_id": "75010608480-h7a8eb3nd99rd3jo9t5ogsv75f2vtl11.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRviYRMkow4X2Eyv_yOT_I7oXhsiM_sjs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "75010608480-h7a8eb3nd99rd3jo9t5ogsv75f2vtl11.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
