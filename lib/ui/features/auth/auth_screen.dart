@@ -166,7 +166,7 @@ class _AuthScreenState extends State<AuthScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'ServiceEpic',
+                              'Epic Infocus',
                               style: textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),

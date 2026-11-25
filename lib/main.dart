@@ -130,7 +130,7 @@ class _ServiceEpicAppState extends State<ServiceEpicApp> {
         ),
       ],
       child: MaterialApp(
-        title: 'ServiceEpic',
+        title: 'Epic Infocus',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
