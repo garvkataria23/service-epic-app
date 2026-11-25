@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/smart_search_engine.dart';
 import '../../../domain/models/service_request.dart';
 import '../../core/widgets/empty_state_widget.dart';
@@ -88,26 +89,29 @@ class _RequestsScreenState extends State<RequestsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                  child: Row(
-                    children: [
-                      _KpiCard(
-                        label: 'Active',
-                        value: '${vm.activeCount}',
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      _KpiCard(
-                        label: 'Open Quotes',
-                        value: '${vm.pendingQuotesCount}',
-                        color: AppColors.accentAmber,
-                      ),
-                      const SizedBox(width: 10),
-                      _KpiCard(
-                        label: 'Completed',
-                        value: '${vm.completedCount}',
-                        color: AppColors.success,
-                      ),
-                    ],
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _KpiCard(
+                          label: 'Active',
+                          value: '${vm.activeCount}',
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        _KpiCard(
+                          label: 'Open Quotes',
+                          value: '${vm.pendingQuotesCount}',
+                          color: AppColors.accentAmber,
+                        ),
+                        const SizedBox(width: 10),
+                        _KpiCard(
+                          label: 'Completed',
+                          value: '${vm.completedCount}',
+                          color: AppColors.success,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -389,12 +393,18 @@ class _RequestCard extends StatelessWidget {
                               color: colors.primary,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              '\$${req.budgetMin.toStringAsFixed(0)}–\$${req.budgetMax.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: colors.primary,
+                            Flexible(
+                              child: Consumer<CurrencyController>(
+                                builder: (_, currency, _) => Text(
+                                  '${currency.format(req.budgetMin)}–${currency.format(req.budgetMax)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.primary,
+                                  ),
+                                ),
                               ),
                             ),
                           ],

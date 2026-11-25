@@ -59,48 +59,64 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
                         'ServiceEpic Wallet',
                         style: TextStyle(
                           color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        currency.formatExact(authVm.currentUser?.walletBalance ?? 0),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
                         ),
                       ),
-                    ],
-                  ),
+                      onPressed: () async {
+                        await authVm.topUpWallet(500);
+                        if (!context.mounted) return;
+                        setState(() {
+                          _banner = ConfirmationBannerData(
+                            title: 'Wallet Topped Up',
+                            badgeText: '+${currency.formatExact(500)}',
+                            subtitle:
+                                'Added ${currency.formatExact(500)} to your Epic Wallet. Available balance: ${currency.formatExact(authVm.currentUser?.walletBalance ?? 0)}.',
+                            tone: ConfirmationTone.success,
+                          );
+                        });
+                      },
+                      icon: const Icon(Icons.add_rounded, size: 17),
+                      label: Text(
+                        'Top Up ${currency.format(500)}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
                 ),
-                FilledButton.tonalIcon(
-                  onPressed: () async {
-                    await authVm.topUpWallet(500);
-                    if (!context.mounted) return;
-                    setState(() {
-                      _banner = ConfirmationBannerData(
-                        title: 'Wallet Topped Up',
-                        badgeText: '+${currency.formatExact(500)}',
-                        subtitle:
-                            'Added ${currency.formatExact(500)} to your Epic Wallet. Available balance: ${currency.formatExact(authVm.currentUser?.walletBalance ?? 0)}.',
-                        tone: ConfirmationTone.success,
-                      );
-                    });
-                  },
-                  icon: const Icon(Icons.add_rounded),
-                  label: Text('Top Up ${currency.format(500)}'),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    currency.formatExact(authVm.currentUser?.walletBalance ?? 0),
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -123,18 +139,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         color: colors.primary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Spend & Escrow Analytics',
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Text(
+                          'Spend & Escrow Analytics',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                      const Spacer(),
-                      Text(
-                        currency.formatExact(totalSpend),
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: colors.primary,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            currency.formatExact(totalSpend),
+                            maxLines: 1,
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: colors.primary,
+                            ),
+                          ),
                         ),
                       ),
                     ],

@@ -628,7 +628,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                         icon: Icons.payments_outlined,
                         label: 'Target Budget',
                         value:
-                            '\$${req.budgetMin.toStringAsFixed(0)} – \$${req.budgetMax.toStringAsFixed(0)}',
+                            '${context.watch<CurrencyController>().format(req.budgetMin)} – ${context.watch<CurrencyController>().format(req.budgetMax)}',
                       ),
                       _DetailRow(
                         icon: Icons.calendar_today_outlined,

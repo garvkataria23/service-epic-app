@@ -108,102 +108,115 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               // Header
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Discover Services',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Discover Services',
+                                maxLines: 1,
+                                style: textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Smart search by skill, budget, rating or intent',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Consumer<CurrencyController>(
-                        builder: (_, currency, _) => InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: currency.toggle,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.primaryContainer
-                                  .withValues(alpha: 0.65),
+                          ),
+                          const SizedBox(width: 6),
+                          Consumer<CurrencyController>(
+                            builder: (_, currency, _) => InkWell(
                               borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${currency.currency.symbol} ${currency.currency.code}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: colors.onPrimaryContainer,
+                              onTap: currency.toggle,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.primaryContainer
+                                      .withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${currency.currency.symbol} ${currency.currency.code}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: colors.onPrimaryContainer,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      Builder(
-                        builder: (ctx) {
-                          final cartCount =
-                              ctx.watch<CartViewModel>().totalItemCount;
-                          return Badge(
-                            isLabelVisible: cartCount > 0,
-                            label: Text('$cartCount'),
-                            child: IconButton(
-                              tooltip: 'Cart & Orders',
-                              onPressed: () {
-                                Navigator.of(ctx).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => const CartScreen(),
+                          Builder(
+                            builder: (ctx) {
+                              final cartCount =
+                                  ctx.watch<CartViewModel>().totalItemCount;
+                              return Badge(
+                                isLabelVisible: cartCount > 0,
+                                label: Text('$cartCount'),
+                                child: IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: 'Cart & Orders',
+                                  onPressed: () {
+                                    Navigator.of(ctx).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => const CartScreen(),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.shopping_cart_outlined,
+                                    size: 21,
                                   ),
-                                );
-                              },
-                              icon: const Icon(Icons.shopping_cart_outlined),
+                                ),
+                              );
+                            },
+                          ),
+                          if (widget.onNotificationsTap != null)
+                            Badge(
+                              isLabelVisible: widget.unreadNotifications > 0,
+                              label: Text('${widget.unreadNotifications}'),
+                              child: IconButton(
+                                visualDensity: VisualDensity.compact,
+                                tooltip: 'Notifications',
+                                onPressed: widget.onNotificationsTap,
+                                icon: const Icon(
+                                  Icons.notifications_outlined,
+                                  size: 21,
+                                ),
+                              ),
                             ),
-                          );
-                        },
+                          const SizedBox(width: 2),
+                          FilledButton.tonalIcon(
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                                vertical: 6,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: widget.onPostCustomRequest,
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: const Text(
+                              'Post',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
                       ),
-                      if (widget.onNotificationsTap != null)
-                        Badge(
-                          isLabelVisible: widget.unreadNotifications > 0,
-                          label: Text('${widget.unreadNotifications}'),
-                          child: IconButton(
-                            tooltip: 'Notifications',
-                            onPressed: widget.onNotificationsTap,
-                            icon: const Icon(Icons.notifications_outlined),
-                          ),
-                        ),
-                      const SizedBox(width: 2),
-                      FilledButton.tonalIcon(
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: widget.onPostCustomRequest,
-                        icon: const Icon(Icons.add_rounded, size: 17),
-                        label: const Text(
-                          'Post',
-                          style: TextStyle(fontSize: 13),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Smart search by skill, budget, rating or intent',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colors.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -214,22 +227,26 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               // Smart Search Bar
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                  child: SmartSearchBar(
-                    controller: _searchController,
-                    focusNode: _searchFocus,
-                    hintText: 'Try "plumber under \$120" or "urgent flutter"',
-                    onChanged: vm.updateQuery,
-                    onSubmitted: (val) {
-                      vm.submitSearch(val);
-                      _searchFocus.unfocus();
-                    },
-                    onClear: () {
-                      _searchController.clear();
-                      vm.updateQuery('');
-                    },
-                    onFilterTap: () => _openFilterSheet(vm),
-                    activeFilterCount: vm.activeFilterCount,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                  child: Consumer<CurrencyController>(
+                    builder: (_, currency, _) => SmartSearchBar(
+                      controller: _searchController,
+                      focusNode: _searchFocus,
+                      hintText: currency.isInr
+                          ? 'Try "plumber under ₹10,000" or "urgent flutter"'
+                          : 'Try "plumber under \$120" or "urgent flutter"',
+                      onChanged: vm.updateQuery,
+                      onSubmitted: (val) {
+                        vm.submitSearch(val);
+                        _searchFocus.unfocus();
+                      },
+                      onClear: () {
+                        _searchController.clear();
+                        vm.updateQuery('');
+                      },
+                      onFilterTap: () => _openFilterSheet(vm),
+                      activeFilterCount: vm.activeFilterCount,
+                    ),
                   ),
                 ),
               ),
@@ -525,6 +542,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     child: Row(
                       children: [
                         Expanded(
+                          flex: 3,
                           child: Text(
                             vm.hasActiveSearchOrFilters
                                 ? '${vm.results.length} Smart Matches'
@@ -538,10 +556,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                         ),
                         const SizedBox(width: 8),
                         Flexible(
+                          flex: 2,
                           child: Text(
                             vm.sortOption.label,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
                             style: textTheme.bodySmall?.copyWith(
                               color: colors.primary,
                               fontWeight: FontWeight.w600,

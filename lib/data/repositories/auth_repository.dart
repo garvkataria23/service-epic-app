@@ -64,7 +64,10 @@ class AuthRepository {
             ? fbUser.displayName!.trim()
             : email.split('@').first;
       } else {
-        await GoogleSignIn.instance.initialize();
+        await GoogleSignIn.instance.initialize(
+          serverClientId:
+              '75010608480-h7a8eb3nd99rd3jo9t5ogsv75f2vtl11.apps.googleusercontent.com',
+        );
         final googleAccount = await GoogleSignIn.instance.authenticate();
         final idToken = googleAccount.authentication.idToken;
 

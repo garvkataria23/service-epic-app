@@ -258,7 +258,7 @@ class _AuthScreenState extends State<AuthScreen>
                             controller: _tabController,
                             tabs: const [
                               Tab(text: 'Sign In'),
-                              Tab(text: 'Create Account'),
+                              Tab(text: 'Sign Up'),
                             ],
                           ),
                           const SizedBox(height: 18),
