@@ -69,6 +69,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     '5:00 PM – 7:00 PM',
   ];
   String _selectedSlot = '10:00 AM – 12:00 PM';
+  String _selectedAddress = 'Home • Default Location';
 
   @override
   void initState() {
@@ -79,6 +80,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _useNewCard = false;
     } else {
       _useNewCard = true;
+    }
+    if (user != null && user.savedAddresses.isNotEmpty) {
+      final def = user.savedAddresses.firstWhere(
+        (a) => a.isDefault,
+        orElse: () => user.savedAddresses.first,
+      );
+      _selectedAddress = '${def.label} • ${def.fullAddress}';
+    } else if (user != null && user.city.isNotEmpty) {
+      _selectedAddress = 'Primary • ${user.city}';
     }
     _cardHolderController.text = user?.fullName.toUpperCase() ?? '';
     if (!kIsWeb) {
@@ -184,6 +194,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         newCardToSave: cardToSave,
         clearCartAfter: widget.clearCartAfter,
         preferredSlot: _selectedSlot,
+        serviceAddress: _selectedAddress,
       );
 
       if (!mounted) return;
@@ -217,6 +228,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 isOrder: true,
                 preferredSlot: order.preferredSlot,
                 jobStartPin: order.jobStartPin,
+                serviceAddress: order.serviceAddress,
               ),
             ),
           );
@@ -563,6 +575,97 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               setState(() => _selectedSlot = slot),
                         );
                       }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 18,
+                          color: colors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Service Visit Address',
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final ctrl = TextEditingController();
+                            final custom = await showDialog<String>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Add Visit Address'),
+                                content: TextField(
+                                  controller: ctrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Flat / Street / Landmark',
+                                    hintText: 'e.g., Office • Sector 18, Noida',
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () =>
+                                        Navigator.pop(ctx, ctrl.text.trim()),
+                                    child: const Text('Use Address'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            ctrl.dispose();
+                            if (custom != null && custom.isNotEmpty && mounted) {
+                              setState(() => _selectedAddress = custom);
+                            }
+                          },
+                          icon: const Icon(Icons.add_location_alt_outlined, size: 16),
+                          label: const Text('Change'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        ...(user?.savedAddresses ?? const []).map((addr) {
+                          final formatted = '${addr.label} • ${addr.fullAddress}';
+                          return ChoiceChip(
+                            label: Text(
+                              addr.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            selected: _selectedAddress == formatted,
+                            onSelected: (_) =>
+                                setState(() => _selectedAddress = formatted),
+                          );
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _selectedAddress,
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -939,12 +1042,14 @@ class _PaymentReceiptScreen extends StatelessWidget {
     this.isOrder = false,
     this.preferredSlot,
     this.jobStartPin,
+    this.serviceAddress,
   });
 
   final PaymentTransaction transaction;
   final bool isOrder;
   final String? preferredSlot;
   final String? jobStartPin;
+  final String? serviceAddress;
 
   @override
   Widget build(BuildContext context) {
@@ -1015,6 +1120,8 @@ class _PaymentReceiptScreen extends StatelessWidget {
                     _PriceRow('Payment Method', transaction.methodDetail),
                     if (preferredSlot != null)
                       _PriceRow('Arrival Slot', preferredSlot!),
+                    if (serviceAddress != null)
+                      _PriceRow('Visit Address', serviceAddress!),
                     if (jobStartPin != null)
                       _PriceRow(
                         'Job-Start PIN',
@@ -1045,6 +1152,8 @@ class _PaymentReceiptScreen extends StatelessWidget {
                             'Amount: $formattedTotal (${currency.currency.code})',
                             'Method: ${transaction.methodDetail}',
                             if (preferredSlot != null) 'Slot: $preferredSlot',
+                            if (serviceAddress != null)
+                              'Address: $serviceAddress',
                             if (jobStartPin != null)
                               'Job-Start PIN: $jobStartPin',
                             'Status: ${transaction.status.label}',

@@ -9,6 +9,7 @@ import '../../domain/models/service_item.dart';
 import '../../domain/models/service_order.dart';
 import '../../domain/models/user_profile.dart';
 import '../services/app_database.dart';
+import '../services/firestore_sync_service.dart';
 import '../services/local_storage_service.dart';
 import 'payment_repository.dart';
 
@@ -92,6 +93,7 @@ class CartOrderRepository {
     SavedCard? newCardToSave,
     bool clearCartAfter = false,
     String preferredSlot = '10:00 AM – 12:00 PM',
+    String serviceAddress = 'Home • Default Location',
   }) async {
     if (items.isEmpty) {
       return const Failure(ValidationException('Your cart is empty.'));
@@ -159,9 +161,11 @@ class CartOrderRepository {
       preferredSlot: preferredSlot,
       jobStartPin: pin,
       progressStep: 0,
+      serviceAddress: serviceAddress,
       createdAt: DateTime.now(),
     );
     await _database.upsertOrder(order);
+    FirestoreSyncService.syncOrder(order);
 
     final txn = PaymentTransaction(
       id: txnId,

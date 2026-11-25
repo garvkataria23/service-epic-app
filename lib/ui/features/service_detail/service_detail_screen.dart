@@ -65,6 +65,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         action: SnackBarAction(
           label: 'View Cart',
           onPressed: () {
+            ScaffoldMessenger.of(context).clearSnackBars();
             Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const CartScreen()),
             );
@@ -596,6 +597,66 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               ),
             ),
           ],
+
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.checklist_rounded,
+                        size: 18,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "What's Included & Escrow Guarantee",
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...[
+                    'Background-verified specialist with 4-digit Job-Start PIN',
+                    '100% Escrow protection — release funds only after completion',
+                    'Free rescheduling & instant wallet refund before work begins',
+                    '7-day complimentary rework / replacement guarantee',
+                  ].map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 15,
+                            color: AppColors.success,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              item,
+                              style: textTheme.bodySmall?.copyWith(
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
           if (service.faqs.isNotEmpty) ...[
             const SizedBox(height: 16),

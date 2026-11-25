@@ -6,6 +6,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/smart_search_engine.dart';
 import '../../../domain/models/service_category.dart';
 import '../../../domain/models/service_item.dart';
+import '../../../domain/models/service_order.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_retry_widget.dart';
 import '../../core/widgets/highlighted_text.dart';
@@ -38,6 +39,7 @@ class DiscoveryScreen extends StatefulWidget {
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+  bool _savedOnly = false;
   bool _showSuggestions = false;
   final Set<String> _compareIds = {};
 
@@ -131,6 +133,32 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                           ],
                         ),
                       ),
+                      Consumer<CurrencyController>(
+                        builder: (_, currency, _) => InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: currency.toggle,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.primaryContainer
+                                  .withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${currency.currency.symbol} ${currency.currency.code}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: colors.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
                       Builder(
                         builder: (ctx) {
                           final cartCount =
@@ -224,6 +252,108 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                   ),
                 ),
 
+              // Live Active Order Mini-Tracker
+              SliverToBoxAdapter(
+                child: Consumer<CartViewModel>(
+                  builder: (ctx, cartVm, _) {
+                    final activeOrders = cartVm.orders.where(
+                      (o) =>
+                          o.status == OrderStatus.confirmed ||
+                          o.status == OrderStatus.scheduled ||
+                          o.status == OrderStatus.replacementScheduled,
+                    );
+                    if (activeOrders.isEmpty) return const SizedBox.shrink();
+                    final active = activeOrders.first;
+                    final stage = ServiceOrder.progressStages[
+                        active.progressStep.clamp(
+                      0,
+                      ServiceOrder.progressStages.length - 1,
+                    )];
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () {
+                          Navigator.of(ctx).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const CartScreen(initialTab: 1),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.primaryContainer.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colors.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: colors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.local_shipping_outlined,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${active.id} • $stage',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: textTheme.labelLarge?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${active.preferredSlot} • PIN: ${active.jobStartPin}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Track',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: colors.primary,
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: colors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
               // Category Horizontal Strip
               SliverToBoxAdapter(
                 child: SizedBox(
@@ -270,6 +400,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                     children: [
+                      _QuickPill(
+                        label: 'Saved (${vm.favoriteIds.length})',
+                        icon: Icons.favorite_rounded,
+                        selected: _savedOnly,
+                        onTap: () => setState(() => _savedOnly = !_savedOnly),
+                      ),
+                      const SizedBox(width: 8),
                       _QuickPill(
                         label: 'Verified Pros',
                         icon: Icons.verified_rounded,
@@ -417,24 +554,47 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 ),
 
                 // Service Cards List
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  sliver: SliverList.separated(
-                    itemCount: vm.results.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final match = vm.results[index];
-                      return _ServiceCard(
-                        match: match,
-                        isFavorite: vm.favoriteIds.contains(match.item.id),
-                        isCompared: _compareIds.contains(match.item.id),
-                        onToggleFavorite: () =>
-                            vm.toggleFavorite(match.item.id),
-                        onToggleCompare: () => _toggleCompare(match.item.id),
-                        onTap: () => _openDetail(vm, match.item),
+                Builder(
+                  builder: (_) {
+                    final displayResults = _savedOnly
+                        ? vm.results
+                            .where((m) => vm.favoriteIds.contains(m.item.id))
+                            .toList()
+                        : vm.results;
+                    if (_savedOnly && displayResults.isEmpty) {
+                      return const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: EmptyStateWidget(
+                            icon: Icons.favorite_border_rounded,
+                            title: 'No saved services yet',
+                            subtitle:
+                                'Tap the heart icon on any service card to save it for quick access.',
+                          ),
+                        ),
                       );
-                    },
-                  ),
+                    }
+                    return SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: SliverList.separated(
+                        itemCount: displayResults.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final match = displayResults[index];
+                          return _ServiceCard(
+                            match: match,
+                            isFavorite: vm.favoriteIds.contains(match.item.id),
+                            isCompared: _compareIds.contains(match.item.id),
+                            onToggleFavorite: () =>
+                                vm.toggleFavorite(match.item.id),
+                            onToggleCompare: () =>
+                                _toggleCompare(match.item.id),
+                            onTap: () => _openDetail(vm, match.item),
+                          );
+                        },
+                      ),
+                    );
+                  },
                 ),
               ],
             ],

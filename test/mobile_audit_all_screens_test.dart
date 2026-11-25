@@ -58,6 +58,18 @@ void main() {
     await tester.tap(find.text('One-Tap Demo Client Login'));
     await tester.pumpAndSettle(const Duration(seconds: 2));
     expect(find.text('Discover Services'), findsOneWidget);
+    expect(find.text('₹ INR'), findsOneWidget);
+
+    // Verify one-tap currency pill in Discovery header
+    await tester.tap(find.text('₹ INR'));
+    await tester.pumpAndSettle();
+    expect(find.text('\$ USD'), findsOneWidget);
+    await tester.tap(find.text('\$ USD'));
+    await tester.pumpAndSettle();
+    expect(find.text('₹ INR'), findsOneWidget);
+
+    // Verify Saved filter chip exists
+    expect(find.textContaining('Saved ('), findsOneWidget);
 
     // 2. Discovery -> Open first Service Detail
     await tester.tap(find.text(SeedData.services.first.title).first);
@@ -77,6 +89,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Secure Escrow Checkout'), findsOneWidget);
     expect(find.text('Preferred Arrival / Kickoff Slot'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Service Visit Address'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Service Visit Address'), findsOneWidget);
 
     // Select Wallet & Pay in Escrow
     await tester.scrollUntilVisible(

@@ -170,12 +170,30 @@ class RequestRepository {
       );
 
       final lower = text.toLowerCase();
-      final replyText = (lower.contains('price') ||
-              lower.contains('discount') ||
-              lower.contains('offer') ||
-              lower.contains('\$'))
-          ? 'Thanks for sharing! We can review your budget and include a complimentary quality check. Let us know if you would like to lock this slot.'
-          : 'Got it, thanks! We have noted your requirement and are ready to start as soon as you confirm in Escrow Checkout.';
+      final String replyText;
+      if (lower.contains('tomorrow') ||
+          lower.contains('slot') ||
+          lower.contains('time') ||
+          lower.contains('when')) {
+        replyText =
+            'Yes, we have availability tomorrow (${quote.estimatedDuration} turnaround). Lock it via Escrow Checkout and share your Job-Start PIN on arrival!';
+      } else if (lower.contains('portfolio') ||
+          lower.contains('sample') ||
+          lower.contains('work')) {
+        replyText =
+            'We have completed ${quote.completedJobs}+ verified jobs (${quote.rating.toStringAsFixed(1)} ★). Deliverables include: ${quote.deliverables.take(2).join(', ')}.';
+      } else if (lower.contains('price') ||
+          lower.contains('discount') ||
+          lower.contains('offer') ||
+          lower.contains('10%') ||
+          lower.contains('₹') ||
+          lower.contains('\$')) {
+        replyText =
+            'Thanks for sharing your target budget! We can include a complimentary post-service quality check & priority warranty with this quote.';
+      } else {
+        replyText =
+            'Got it, thanks! We have noted your requirement and are ready to start as soon as you confirm in Escrow Checkout.';
+      }
 
       final providerReply = ResponseMessage(
         id: _uuid.v4(),

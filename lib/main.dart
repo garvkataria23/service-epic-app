@@ -164,6 +164,34 @@ class _ServiceEpicAppState extends State<ServiceEpicApp> {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
+        builder: (context, child) {
+          if (child == null) return const SizedBox.shrink();
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 640) {
+                return ColoredBox(
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                  child: Center(
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 540),
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 24,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: ClipRect(child: child),
+                    ),
+                  ),
+                );
+              }
+              return child;
+            },
+          );
+        },
         home: Consumer<AuthViewModel>(
           builder: (context, authVm, _) {
             if (!authVm.isAuthenticated) {

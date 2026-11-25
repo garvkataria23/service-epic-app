@@ -40,6 +40,7 @@ class ServiceOrder {
     this.preferredSlot = '10:00 AM – 12:00 PM',
     this.jobStartPin = '4829',
     this.progressStep = 0,
+    this.serviceAddress = 'Home • Default Location',
   });
 
   final String id;
@@ -58,6 +59,7 @@ class ServiceOrder {
   final String preferredSlot;
   final String jobStartPin;
   final int progressStep;
+  final String serviceAddress;
 
   static const List<String> progressStages = [
     'Confirmed',
@@ -73,6 +75,7 @@ class ServiceOrder {
     String? preferredSlot,
     String? jobStartPin,
     int? progressStep,
+    String? serviceAddress,
   }) =>
       ServiceOrder(
         id: id,
@@ -92,6 +95,7 @@ class ServiceOrder {
         preferredSlot: preferredSlot ?? this.preferredSlot,
         jobStartPin: jobStartPin ?? this.jobStartPin,
         progressStep: progressStep ?? this.progressStep,
+        serviceAddress: serviceAddress ?? this.serviceAddress,
       );
 
   factory ServiceOrder.fromJson(Map<String, dynamic> json) => ServiceOrder(
@@ -114,6 +118,8 @@ class ServiceOrder {
         preferredSlot: json['preferredSlot'] as String? ?? '10:00 AM – 12:00 PM',
         jobStartPin: json['jobStartPin'] as String? ?? '4829',
         progressStep: json['progressStep'] as int? ?? 0,
+        serviceAddress:
+            json['serviceAddress'] as String? ?? 'Home • Default Location',
       );
 
   Map<String, dynamic> toJson() => {
@@ -133,5 +139,6 @@ class ServiceOrder {
         'preferredSlot': preferredSlot,
         'jobStartPin': jobStartPin,
         'progressStep': progressStep,
+        'serviceAddress': serviceAddress,
       };
 }

@@ -329,6 +329,31 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                         ),
                 ),
                 const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      'Can you offer 10% discount?',
+                      'Available tomorrow?',
+                      'Share past work & warranty',
+                    ].map((preset) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          label: Text(
+                            preset,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            msgController.text = preset;
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
