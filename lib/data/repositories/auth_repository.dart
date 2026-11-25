@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/config/app_env.dart';
@@ -18,6 +19,127 @@ class AuthRepository {
       _storage.authToken != null && _storage.loadUserProfile() != null;
 
   UserProfile? getCurrentUser() => _storage.loadUserProfile();
+
+  bool get isEmailVerified {
+    if (!AppEnv.firebaseInitialized) return true;
+    try {
+      return FirebaseAuth.instance.currentUser?.emailVerified ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Future<Result<UserProfile>> signInWithGoogle() async {
+    if (_storage.simulateApiError) {
+      return const Failure(
+        NetworkException('Unable to reach Google Sign-In service.'),
+      );
+    }
+
+    try {
+      await GoogleSignIn.instance.initialize();
+      final googleAccount = await GoogleSignIn.instance.authenticate();
+      final idToken = googleAccount.authentication.idToken;
+
+      String uid = googleAccount.id;
+      String? token = idToken;
+
+      if (AppEnv.firebaseInitialized && idToken != null) {
+        final credential = GoogleAuthProvider.credential(idToken: idToken);
+        final userCred =
+            await FirebaseAuth.instance.signInWithCredential(credential);
+        uid = userCred.user?.uid ?? uid;
+        token = await userCred.user?.getIdToken() ?? token;
+      }
+
+      final demo = SeedData.demoUser();
+      final profile = UserProfile(
+        id: uid,
+        fullName: googleAccount.displayName?.trim().isNotEmpty == true
+            ? googleAccount.displayName!.trim()
+            : googleAccount.email.split('@').first,
+        email: googleAccount.email.toLowerCase(),
+        phone: demo.phone,
+        city: demo.city,
+        walletBalance: demo.walletBalance,
+        savedAddresses: demo.savedAddresses,
+        savedCards: demo.savedCards,
+        joinedAt: DateTime.now(),
+      );
+      await _storage.saveUserProfile(profile);
+      await _storage.saveAuthToken(token ?? 'tok_google_${_uuid.v4()}');
+      return Success(profile);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return const Failure(
+          ValidationException('Google Sign-In was cancelled.'),
+        );
+      }
+      return Failure(
+        NetworkException(
+          'Google Sign-In unavailable (${e.code.name}). Ensure SHA-1 & Google Sign-In are enabled in Firebase Console, or use Email / Demo Login.',
+          e,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      return Failure(
+        ValidationException(e.message ?? 'Google authentication failed.'),
+      );
+    } catch (e) {
+      return Failure(
+        NetworkException('Google Sign-In failed: $e', e),
+      );
+    }
+  }
+
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_storage.simulateApiError) {
+      return const Failure(
+        NetworkException('Unable to reach security server.'),
+      );
+    }
+
+    if (AppEnv.firebaseInitialized) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null && user.email != null) {
+          final cred = EmailAuthProvider.credential(
+            email: user.email!,
+            password: currentPassword,
+          );
+          await user.reauthenticateWithCredential(cred);
+          await user.updatePassword(newPassword);
+          return const Success(null);
+        }
+      } on FirebaseAuthException catch (e) {
+        return Failure(
+          ValidationException(e.message ?? 'Could not update password.'),
+        );
+      } catch (_) {}
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    return const Success(null);
+  }
+
+  Future<Result<void>> sendEmailVerification() async {
+    if (AppEnv.firebaseInitialized) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null && !user.emailVerified) {
+          await user.sendEmailVerification();
+        }
+      } on FirebaseAuthException catch (e) {
+        return Failure(
+          ValidationException(e.message ?? 'Could not send verification email.'),
+        );
+      } catch (_) {}
+    }
+    return const Success(null);
+  }
 
   Future<Result<UserProfile>> signIn({
     required String email,
@@ -184,6 +306,9 @@ class AuthRepository {
         await FirebaseAuth.instance.signOut();
       } catch (_) {}
     }
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
     await _storage.saveAuthToken(null);
   }
 

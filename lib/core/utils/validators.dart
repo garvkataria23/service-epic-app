@@ -1,3 +1,46 @@
+class PasswordStrength {
+  const PasswordStrength({
+    required this.hasMinLength,
+    required this.hasUppercase,
+    required this.hasLowercase,
+    required this.hasDigit,
+    required this.hasSpecialChar,
+  });
+
+  final bool hasMinLength;
+  final bool hasUppercase;
+  final bool hasLowercase;
+  final bool hasDigit;
+  final bool hasSpecialChar;
+
+  int get metCount => [
+        hasMinLength,
+        hasUppercase,
+        hasLowercase,
+        hasDigit,
+        hasSpecialChar,
+      ].where((e) => e).length;
+
+  double get progress => metCount / 5.0;
+
+  String get label => switch (metCount) {
+        0 || 1 || 2 => 'Weak',
+        3 => 'Fair',
+        4 => 'Good',
+        _ => 'Strong',
+      };
+
+  static PasswordStrength evaluate(String value) {
+    return PasswordStrength(
+      hasMinLength: value.length >= 8,
+      hasUppercase: RegExp(r'[A-Z]').hasMatch(value),
+      hasLowercase: RegExp(r'[a-z]').hasMatch(value),
+      hasDigit: RegExp(r'[0-9]').hasMatch(value),
+      hasSpecialChar: RegExp(r'[!@#\$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]').hasMatch(value),
+    );
+  }
+}
+
 /// Comprehensive form validators for Service Requirement Submission,
 /// Request Editing, and Quote Negotiation.
 class Validators {
@@ -128,6 +171,18 @@ class Validators {
     final v = value ?? '';
     if (v.isEmpty) return 'Password is required.';
     if (v.length < 6) return 'Password must be at least 6 characters.';
+    return null;
+  }
+
+  static String? strongPassword(String? value) {
+    final v = value ?? '';
+    if (v.isEmpty) return 'Password is required.';
+    final s = PasswordStrength.evaluate(v);
+    if (!s.hasMinLength) return 'Password must be at least 8 characters.';
+    if (!s.hasUppercase) return 'Include at least 1 uppercase letter (A–Z).';
+    if (!s.hasLowercase) return 'Include at least 1 lowercase letter (a–z).';
+    if (!s.hasDigit) return 'Include at least 1 number (0–9).';
+    if (!s.hasSpecialChar) return 'Include at least 1 special character (!@#\$...).';
     return null;
   }
 

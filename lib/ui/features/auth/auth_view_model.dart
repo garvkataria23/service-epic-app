@@ -21,6 +21,7 @@ class AuthViewModel extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isEmailVerified => _repository.isEmailVerified;
 
   void refreshUserFromStorage() {
     _currentUser = _repository.getCurrentUser();
@@ -88,6 +89,29 @@ class AuthViewModel extends ChangeNotifier {
     return ok;
   }
 
+  Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    final res = await _repository.signInWithGoogle();
+    _isLoading = false;
+
+    final ok = res.when(
+      success: (user) {
+        _currentUser = user;
+        _isAuthenticated = true;
+        return true;
+      },
+      failure: (err) {
+        _errorMessage = err.message;
+        return false;
+      },
+    );
+    notifyListeners();
+    return ok;
+  }
+
   Future<bool> signInDemo() async {
     _isLoading = true;
     _errorMessage = null;
@@ -109,6 +133,36 @@ class AuthViewModel extends ChangeNotifier {
     );
     notifyListeners();
     return ok;
+  }
+
+  Future<String?> sendPasswordReset(String email) async {
+    final res = await _repository.sendPasswordReset(email);
+    return res.when(
+      success: (_) => null,
+      failure: (err) => err.message,
+    );
+  }
+
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final res = await _repository.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    return res.when(
+      success: (_) => null,
+      failure: (err) => err.message,
+    );
+  }
+
+  Future<String?> sendEmailVerification() async {
+    final res = await _repository.sendEmailVerification();
+    return res.when(
+      success: (_) => null,
+      failure: (err) => err.message,
+    );
   }
 
   Future<void> topUpWallet(double amount) async {

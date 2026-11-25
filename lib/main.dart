@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +21,28 @@ import 'ui/features/requests/requests_view_model.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Production error boundary so uncaught errors never crash silently or render raw red screens
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Unhandled async error: $error');
+    return true;
+  };
+  ErrorWidget.builder = (details) => Material(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Something went wrong while rendering this view.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      );
+
   await AppEnv.load();
   try {
     await Firebase.initializeApp(

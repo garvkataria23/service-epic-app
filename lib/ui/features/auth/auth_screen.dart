@@ -18,8 +18,8 @@ class _AuthScreenState extends State<AuthScreen>
   final _signInKey = GlobalKey<FormState>();
   final _signUpKey = GlobalKey<FormState>();
 
-  final _loginEmail = TextEditingController(text: 'garv.client@example.com');
-  final _loginPassword = TextEditingController(text: 'Client@123');
+  final _loginEmail = TextEditingController();
+  final _loginPassword = TextEditingController();
 
   final _regName = TextEditingController();
   final _regEmail = TextEditingController();
@@ -51,40 +51,77 @@ class _AuthScreenState extends State<AuthScreen>
     super.dispose();
   }
 
-  Future<void> _showForgotPasswordDialog() async {
-    final resetEmail = TextEditingController(text: _loginEmail.text);
+  Future<void> _showForgotPasswordDialog(AuthViewModel vm) async {
+    final formKey = GlobalKey<FormState>();
+    final resetEmail = TextEditingController(text: _loginEmail.text.trim());
+    var isSending = false;
+
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: TextField(
-          controller: resetEmail,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Registered Email',
-            hintText: 'name@example.com',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Password reset link sent to ${resetEmail.text.trim()}',
-                  ),
-                  behavior: SnackBarBehavior.floating,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Reset Password'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter your registered email address and we will send you a password reset link.',
                 ),
-              );
-            },
-            child: const Text('Send Link'),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: resetEmail,
+                  validator: Validators.email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Registered Email',
+                    hintText: 'name@example.com',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: isSending ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: isSending
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      setDialogState(() => isSending = true);
+                      final err = await vm.sendPasswordReset(resetEmail.text);
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            err ??
+                                'Password reset link sent to ${resetEmail.text.trim()}',
+                          ),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+              child: isSending
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Send Reset Link'),
+            ),
+          ],
+        ),
       ),
     );
     resetEmail.dispose();
@@ -145,7 +182,7 @@ class _AuthScreenState extends State<AuthScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
                   if (vm.errorMessage != null) ...[
                     Container(
@@ -180,6 +217,38 @@ class _AuthScreenState extends State<AuthScreen>
                     ),
                   ],
 
+                  // Continue with Google CTA
+                  OutlinedButton.icon(
+                    onPressed: vm.isLoading ? null : vm.signInWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const _GoogleBadge(),
+                    label: const Text(
+                      'Continue with Google',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'OR',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
@@ -207,10 +276,10 @@ class _AuthScreenState extends State<AuthScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 18),
-                  OutlinedButton.icon(
+                  const SizedBox(height: 14),
+                  TextButton.icon(
                     onPressed: vm.isLoading ? null : vm.signInDemo,
-                    icon: const Icon(Icons.flash_on_rounded),
+                    icon: const Icon(Icons.flash_on_rounded, size: 18),
                     label: const Text('One-Tap Demo Client Login'),
                   ),
                 ],
@@ -232,8 +301,10 @@ class _AuthScreenState extends State<AuthScreen>
             controller: _loginEmail,
             validator: Validators.email,
             keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
             decoration: const InputDecoration(
               labelText: 'Email Address',
+              hintText: 'name@example.com',
               prefixIcon: Icon(Icons.email_outlined),
             ),
           ),
@@ -242,6 +313,7 @@ class _AuthScreenState extends State<AuthScreen>
             controller: _loginPassword,
             validator: Validators.password,
             obscureText: _obscureLogin,
+            autofillHints: const [AutofillHints.password],
             decoration: InputDecoration(
               labelText: 'Password',
               prefixIcon: const Icon(Icons.lock_outline_rounded),
@@ -259,7 +331,7 @@ class _AuthScreenState extends State<AuthScreen>
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: _showForgotPasswordDialog,
+              onPressed: () => _showForgotPasswordDialog(vm),
               child: const Text('Forgot Password?'),
             ),
           ),
@@ -339,8 +411,9 @@ class _AuthScreenState extends State<AuthScreen>
           const SizedBox(height: 12),
           TextFormField(
             controller: _regPassword,
-            validator: Validators.password,
+            validator: Validators.strongPassword,
             obscureText: _obscureReg,
+            onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               labelText: 'Password *',
               prefixIcon: const Icon(Icons.lock_outline_rounded),
@@ -354,6 +427,10 @@ class _AuthScreenState extends State<AuthScreen>
               ),
             ),
           ),
+          if (_regPassword.text.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            PasswordStrengthIndicator(password: _regPassword.text),
+          ],
           const SizedBox(height: 12),
           TextFormField(
             controller: _regConfirmPassword,
@@ -393,6 +470,122 @@ class _AuthScreenState extends State<AuthScreen>
           ),
         ],
       ),
+    );
+  }
+}
+
+class _GoogleBadge extends StatelessWidget {
+  const _GoogleBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.lightBorder),
+      ),
+      child: const Text(
+        'G',
+        style: TextStyle(
+          color: Color(0xFF4285F4),
+          fontWeight: FontWeight.w900,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+}
+
+class PasswordStrengthIndicator extends StatelessWidget {
+  const PasswordStrengthIndicator({super.key, required this.password});
+
+  final String password;
+
+  @override
+  Widget build(BuildContext context) {
+    final strength = PasswordStrength.evaluate(password);
+    final color = switch (strength.metCount) {
+      0 || 1 || 2 => AppColors.error,
+      3 => AppColors.warning,
+      4 => AppColors.info,
+      _ => AppColors.success,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: strength.progress,
+                  minHeight: 6,
+                  color: color,
+                  backgroundColor: color.withValues(alpha: 0.18),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              strength.label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            _RuleCheck('8+ chars', strength.hasMinLength),
+            _RuleCheck('A–Z', strength.hasUppercase),
+            _RuleCheck('a–z', strength.hasLowercase),
+            _RuleCheck('0–9', strength.hasDigit),
+            _RuleCheck('Symbol', strength.hasSpecialChar),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RuleCheck extends StatelessWidget {
+  const _RuleCheck(this.label, this.met);
+
+  final String label;
+  final bool met;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = met ? AppColors.success : Colors.grey;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          met ? Icons.check_circle_rounded : Icons.circle_outlined,
+          size: 13,
+          color: color,
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            fontWeight: met ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 
 import '../../core/config/app_env.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/validators.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/request_repository.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../domain/models/app_notification.dart';
 import '../../domain/models/service_item.dart';
 import '../../domain/models/service_request.dart';
+import 'auth/auth_screen.dart';
 import 'auth/auth_view_model.dart';
 import 'discovery/discovery_screen.dart';
 import 'discovery/discovery_view_model.dart';
@@ -348,6 +350,109 @@ class _ProfileTabState extends State<_ProfileTab> {
     cityCtrl.dispose();
   }
 
+  Future<void> _changePasswordDialog(AuthViewModel authVm) async {
+    final formKey = GlobalKey<FormState>();
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    var isSaving = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Change Password'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: currentCtrl,
+                    validator: Validators.password,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Current Password',
+                      prefixIcon: Icon(Icons.lock_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: newCtrl,
+                    validator: Validators.strongPassword,
+                    obscureText: true,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: Icon(Icons.lock_reset_rounded),
+                    ),
+                  ),
+                  if (newCtrl.text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    PasswordStrengthIndicator(password: newCtrl.text),
+                  ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmCtrl,
+                    validator: (v) =>
+                        Validators.confirmPassword(v, newCtrl.text),
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm New Password',
+                      prefixIcon: Icon(Icons.check_circle_outline_rounded),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSaving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: isSaving
+                  ? null
+                  : () async {
+                      if (!(formKey.currentState?.validate() ?? false)) return;
+                      setDialogState(() => isSaving = true);
+                      final err = await authVm.changePassword(
+                        currentPassword: currentCtrl.text,
+                        newPassword: newCtrl.text,
+                      );
+                      if (!ctx.mounted) return;
+                      Navigator.pop(ctx);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(err ?? 'Password updated successfully!'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+              child: isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Update Password'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    currentCtrl.dispose();
+    newCtrl.dispose();
+    confirmCtrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
@@ -421,6 +526,56 @@ class _ProfileTabState extends State<_ProfileTab> {
                 ),
               ),
             ),
+
+          const SizedBox(height: 16),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.lock_reset_rounded),
+                  title: const Text('Change Password'),
+                  subtitle: const Text('Update your password securely'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => _changePasswordDialog(authVm),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(
+                    authVm.isEmailVerified
+                        ? Icons.verified_user_rounded
+                        : Icons.mark_email_unread_outlined,
+                    color: authVm.isEmailVerified
+                        ? AppColors.success
+                        : AppColors.warning,
+                  ),
+                  title: Text(
+                    authVm.isEmailVerified
+                        ? 'Email Verified'
+                        : 'Verify Your Email',
+                  ),
+                  subtitle: Text(
+                    authVm.isEmailVerified
+                        ? 'Your account email is verified'
+                        : 'Tap to send a verification email',
+                  ),
+                  onTap: authVm.isEmailVerified
+                      ? null
+                      : () async {
+                          final err = await authVm.sendEmailVerification();
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                err ?? 'Verification email sent!',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                ),
+              ],
+            ),
+          ),
 
           const SizedBox(height: 16),
           Card(

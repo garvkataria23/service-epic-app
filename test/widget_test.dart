@@ -32,6 +32,7 @@ void main() {
     );
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
+    expect(find.text('Continue with Google'), findsOneWidget);
     expect(find.text('One-Tap Demo Client Login'), findsOneWidget);
 
     await tester.tap(find.text('One-Tap Demo Client Login'));

@@ -25,5 +25,18 @@ void main() {
       expect(Validators.preferredDate(yesterday), isNotNull);
       expect(Validators.preferredDate(tomorrow), isNull);
     });
+
+    test('strongPassword and PasswordStrength enforce complexity', () {
+      expect(Validators.strongPassword('weak'), isNotNull);
+      expect(Validators.strongPassword('alllowercase1!'), isNotNull);
+      expect(Validators.strongPassword('StrongPass1!'), isNull);
+
+      final weak = PasswordStrength.evaluate('abc');
+      expect(weak.label, 'Weak');
+
+      final strong = PasswordStrength.evaluate('StrongPass1!');
+      expect(strong.label, 'Strong');
+      expect(strong.progress, 1.0);
+    });
   });
 }
