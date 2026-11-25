@@ -79,6 +79,60 @@ class ServiceApiClient {
     }
   }
 
+  Future<dynamic> _remotePost(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$baseUrl$path');
+    try {
+      final response = await _httpClient
+          .post(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body);
+      }
+      throw ServerException(
+        'Server returned ${response.statusCode}',
+        statusCode: response.statusCode,
+      );
+    } on AppException {
+      rethrow;
+    } catch (e) {
+      throw NetworkException('Network POST failed: $e', e);
+    }
+  }
+
+  Future<dynamic> _remotePatch(String path, Map<String, dynamic> body) async {
+    final uri = Uri.parse('$baseUrl$path');
+    try {
+      final response = await _httpClient
+          .patch(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body);
+      }
+      throw ServerException(
+        'Server returned ${response.statusCode}',
+        statusCode: response.statusCode,
+      );
+    } on AppException {
+      rethrow;
+    } catch (e) {
+      throw NetworkException('Network PATCH failed: $e', e);
+    }
+  }
+
   /// GET /api/v1/services
   Future<List<ServiceItem>> fetchServices() async {
     if (baseUrl != null) {
@@ -114,6 +168,12 @@ class ServiceApiClient {
   /// POST /api/v1/requests
   Future<ServiceRequest> createRequest(ServiceRequest draft) async {
     await _ensureSeeded();
+    if (baseUrl != null) {
+      final json =
+          await _remotePost('/api/v1/requests', draft.toJson())
+              as Map<String, dynamic>;
+      return ServiceRequest.fromJson(json);
+    }
     await _simulateNetwork(minMs: 280, maxMs: 550);
 
     final now = DateTime.now();
@@ -133,6 +193,7 @@ class ServiceApiClient {
       contactEmail: draft.contactEmail,
       contactPhone: draft.contactPhone,
       customAnswers: draft.customAnswers,
+      attachmentLabels: draft.attachmentLabels,
       status: RequestStatus.quoted,
       createdAt: now,
       updatedAt: now,
@@ -184,6 +245,12 @@ class ServiceApiClient {
   /// PATCH /api/v1/requests/:id
   Future<ServiceRequest> updateRequest(ServiceRequest updated) async {
     await _ensureSeeded();
+    if (baseUrl != null) {
+      final json =
+          await _remotePatch('/api/v1/requests/${updated.id}', updated.toJson())
+              as Map<String, dynamic>;
+      return ServiceRequest.fromJson(json);
+    }
     await _simulateNetwork();
     final requests = _storage.loadRequests();
     final idx = requests.indexWhere((r) => r.id == updated.id);

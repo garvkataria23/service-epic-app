@@ -30,6 +30,7 @@ class SubmitRequestViewModel extends ChangeNotifier {
     required String contactEmail,
     required String contactPhone,
     required Map<String, String> customAnswers,
+    List<String> attachmentLabels = const [],
   }) async {
     _isSubmitting = true;
     _errorMessage = null;
@@ -51,6 +52,7 @@ class SubmitRequestViewModel extends ChangeNotifier {
       contactEmail: contactEmail.trim(),
       contactPhone: contactPhone.trim(),
       customAnswers: customAnswers,
+      attachmentLabels: attachmentLabels,
       status: RequestStatus.open,
       createdAt: now,
       updatedAt: now,
@@ -83,6 +85,7 @@ class SubmitRequestViewModel extends ChangeNotifier {
     required String contactEmail,
     required String contactPhone,
     required Map<String, String> customAnswers,
+    List<String> attachmentLabels = const [],
   }) async {
     _isSubmitting = true;
     _errorMessage = null;
@@ -101,6 +104,7 @@ class SubmitRequestViewModel extends ChangeNotifier {
       contactEmail: contactEmail.trim(),
       contactPhone: contactPhone.trim(),
       customAnswers: customAnswers,
+      attachmentLabels: attachmentLabels,
       updatedAt: now,
       timeline: [
         ...existing.timeline,

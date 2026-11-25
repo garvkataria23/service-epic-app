@@ -683,16 +683,43 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                             ],
                           ),
                           subtitle: Text(user.savedAddresses[i].fullAddress),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded),
-                            onPressed: () async {
-                              final updated = List<SavedAddress>.from(
-                                user.savedAddresses,
-                              )..removeAt(i);
-                              await authVm.updateProfile(
-                                user.copyWith(savedAddresses: updated),
-                              );
-                            },
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (!user.savedAddresses[i].isDefault)
+                                TextButton(
+                                  onPressed: () async {
+                                    final updated = user.savedAddresses
+                                        .asMap()
+                                        .entries
+                                        .map(
+                                          (entry) => SavedAddress(
+                                            id: entry.value.id,
+                                            label: entry.value.label,
+                                            fullAddress:
+                                                entry.value.fullAddress,
+                                            isDefault: entry.key == i,
+                                          ),
+                                        )
+                                        .toList();
+                                    await authVm.updateProfile(
+                                      user.copyWith(savedAddresses: updated),
+                                    );
+                                  },
+                                  child: const Text('Set Default'),
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded),
+                                onPressed: () async {
+                                  final updated = List<SavedAddress>.from(
+                                    user.savedAddresses,
+                                  )..removeAt(i);
+                                  await authVm.updateProfile(
+                                    user.copyWith(savedAddresses: updated),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       ],

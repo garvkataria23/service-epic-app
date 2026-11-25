@@ -42,7 +42,16 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
   late RequestUrgency _urgency;
   DateTime? _preferredDate;
   final Map<String, String> _customAnswers = {};
+  final Set<String> _attachments = {};
   String? _dateError;
+
+  static const _attachmentOptions = [
+    'Site Photo',
+    'Floor Plan / Blueprint',
+    'UI Wireframe',
+    'Specification PDF',
+    'Error Screenshot',
+  ];
 
   bool get _isEditing => widget.editingRequest != null;
 
@@ -66,6 +75,7 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
       _emailController.text = edit.contactEmail;
       _phoneController.text = edit.contactPhone;
       _customAnswers.addAll(edit.customAnswers);
+      _attachments.addAll(edit.attachmentLabels);
     } else if (srv != null) {
       _category = srv.category;
       _urgency = RequestUrgency.normal;
@@ -169,6 +179,7 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
         contactEmail: _emailController.text,
         contactPhone: _phoneController.text,
         customAnswers: Map<String, String>.from(_customAnswers),
+        attachmentLabels: _attachments.toList(),
       );
     } else {
       result = await vm.submitNew(
@@ -184,6 +195,7 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
         contactEmail: _emailController.text,
         contactPhone: _phoneController.text,
         customAnswers: Map<String, String>.from(_customAnswers),
+        attachmentLabels: _attachments.toList(),
       );
     }
 
@@ -377,6 +389,40 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
               }),
             ],
 
+            const SizedBox(height: 8),
+            Text(
+              'Attach Reference Photos / Docs (Optional)',
+              style: textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: _attachmentOptions
+                  .map(
+                    (label) => FilterChip(
+                      avatar: Icon(
+                        _attachments.contains(label)
+                            ? Icons.attach_file_rounded
+                            : Icons.add_photo_alternate_outlined,
+                        size: 15,
+                      ),
+                      label: Text(label, style: const TextStyle(fontSize: 12)),
+                      selected: _attachments.contains(label),
+                      onSelected: (selected) => setState(() {
+                        if (selected) {
+                          _attachments.add(label);
+                        } else {
+                          _attachments.remove(label);
+                        }
+                      }),
+                    ),
+                  )
+                  .toList(),
+            ),
             const SizedBox(height: 12),
             Text(
               '3. Budget & Timeline',

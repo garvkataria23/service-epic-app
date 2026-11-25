@@ -83,6 +83,7 @@ class ServiceRequest {
     required this.createdAt,
     required this.updatedAt,
     this.timeline = const [],
+    this.attachmentLabels = const [],
     this.clientRating,
     this.clientReview,
   });
@@ -105,6 +106,7 @@ class ServiceRequest {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<TimelineEvent> timeline;
+  final List<String> attachmentLabels;
   final double? clientRating;
   final String? clientReview;
 
@@ -123,6 +125,7 @@ class ServiceRequest {
     RequestStatus? status,
     DateTime? updatedAt,
     List<TimelineEvent>? timeline,
+    List<String>? attachmentLabels,
     double? clientRating,
     String? clientReview,
   }) {
@@ -145,6 +148,7 @@ class ServiceRequest {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       timeline: timeline ?? this.timeline,
+      attachmentLabels: attachmentLabels ?? this.attachmentLabels,
       clientRating: clientRating ?? this.clientRating,
       clientReview: clientReview ?? this.clientReview,
     );
@@ -174,6 +178,9 @@ class ServiceRequest {
       timeline: (json['timeline'] as List<dynamic>? ?? const [])
           .map((e) => TimelineEvent.fromJson(e as Map<String, dynamic>))
           .toList(),
+      attachmentLabels:
+          (json['attachmentLabels'] as List<dynamic>? ?? const [])
+              .cast<String>(),
       clientRating: (json['clientRating'] as num?)?.toDouble(),
       clientReview: json['clientReview'] as String?,
     );
@@ -198,6 +205,7 @@ class ServiceRequest {
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
         'timeline': timeline.map((e) => e.toJson()).toList(),
+        'attachmentLabels': attachmentLabels,
         'clientRating': clientRating,
         'clientReview': clientReview,
       };

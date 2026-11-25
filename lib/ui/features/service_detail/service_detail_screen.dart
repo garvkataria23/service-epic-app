@@ -7,6 +7,7 @@ import '../../../domain/models/service_item.dart';
 import '../cart/cart_screen.dart';
 import '../cart/cart_view_model.dart';
 import '../payment/checkout_screen.dart';
+import '../provider_profile/provider_profile_screen.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
   const ServiceDetailScreen({
@@ -146,55 +147,91 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: service.category.color.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          service.category.icon,
-                          color: service.category.color,
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    service.providerName,
-                                    style: textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
+                  InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ProviderProfileScreen(
+                            providerName: service.providerName,
+                            providerTitle: service.providerTitle,
+                            isVerified: service.isVerifiedProvider,
+                            rating: service.rating,
+                            completedJobs: service.completedJobs,
+                            onSelectService: (srv) {
+                              Navigator.of(context).pop();
+                              if (srv.id != service.id) {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ServiceDetailScreen(
+                                      service: srv,
+                                      isFavorite: widget.isFavorite,
+                                      onToggleFavorite: widget.onToggleFavorite,
+                                      onRequestService: widget.onRequestService,
                                     ),
                                   ),
-                                ),
-                                if (service.isVerifiedProvider) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(
-                                    Icons.verified_rounded,
-                                    size: 16,
-                                    color: AppColors.info,
-                                  ),
-                                ],
-                              ],
-                            ),
-                            Text(
-                              '${service.providerTitle} • SKU: ${service.skuCode}',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
+                                );
+                              }
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: service.category.color.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            service.category.icon,
+                            color: service.category.color,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      service.providerName,
+                                      style: textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: colors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (service.isVerifiedProvider) ...[
+                                    const SizedBox(width: 6),
+                                    const Icon(
+                                      Icons.verified_rounded,
+                                      size: 16,
+                                      color: AppColors.info,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              Text(
+                                '${service.providerTitle} • SKU: ${service.skuCode}',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Text(

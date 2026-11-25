@@ -486,6 +486,25 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                               .toList(),
                         ),
                       ],
+                      if (req.attachmentLabels.isNotEmpty) ...[
+                        const Divider(height: 20),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: req.attachmentLabels
+                              .map(
+                                (a) => Chip(
+                                  avatar: const Icon(
+                                    Icons.attach_file_rounded,
+                                    size: 14,
+                                  ),
+                                  label: Text(a),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ],
                     ],
                   ),
                 ),

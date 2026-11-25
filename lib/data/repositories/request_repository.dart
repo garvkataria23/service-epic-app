@@ -168,12 +168,29 @@ class RequestRepository {
         text: text.trim(),
         timestamp: now,
       );
+
+      final lower = text.toLowerCase();
+      final replyText = (lower.contains('price') ||
+              lower.contains('discount') ||
+              lower.contains('offer') ||
+              lower.contains('\$'))
+          ? 'Thanks for sharing! We can review your budget and include a complimentary quality check. Let us know if you would like to lock this slot.'
+          : 'Got it, thanks! We have noted your requirement and are ready to start as soon as you confirm in Escrow Checkout.';
+
+      final providerReply = ResponseMessage(
+        id: _uuid.v4(),
+        senderIsClient: false,
+        senderName: quote.providerName,
+        text: replyText,
+        timestamp: now.add(const Duration(seconds: 1)),
+      );
+
       final updated = await _apiClient.updateProviderResponse(
         quote.copyWith(
           status: quote.status == QuoteStatus.pending
               ? QuoteStatus.negotiating
               : quote.status,
-          messages: [...quote.messages, clientMsg],
+          messages: [...quote.messages, clientMsg, providerReply],
         ),
       );
       return Success(updated);

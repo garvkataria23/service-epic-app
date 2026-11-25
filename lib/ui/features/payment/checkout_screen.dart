@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
+import '../../../core/config/app_env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/repositories/cart_order_repository.dart';
@@ -54,6 +57,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _promoFeedback;
   bool _isProcessing = false;
   String? _errorBanner;
+  Razorpay? _razorpay;
 
   @override
   void initState() {
@@ -66,10 +70,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _useNewCard = true;
     }
     _cardHolderController.text = user?.fullName.toUpperCase() ?? '';
+    if (!kIsWeb) {
+      try {
+        _razorpay = Razorpay();
+        _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onRazorpaySuccess);
+        _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _onRazorpayError);
+      } catch (_) {
+        _razorpay = null;
+      }
+    }
   }
 
   @override
   void dispose() {
+    _razorpay?.clear();
     _promoController.dispose();
     _cardNumberController.dispose();
     _cardHolderController.dispose();
@@ -88,6 +102,142 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       double.parse((_subtotal * _discountRate).toStringAsFixed(2));
   double get _total =>
       double.parse((_subtotal + _platformFee - _discount).toStringAsFixed(2));
+
+  Future<void> _onRazorpaySuccess(PaymentSuccessResponse response) async {
+    if (!mounted) return;
+    await _completePaymentRecord(
+      method: PaymentMethodType.card,
+      methodDetail: 'Razorpay (${response.paymentId ?? 'Test'})',
+    );
+  }
+
+  void _onRazorpayError(PaymentFailureResponse response) {
+    if (!mounted) return;
+    setState(() {
+      _isProcessing = false;
+      _errorBanner =
+          response.message ?? 'Razorpay checkout was cancelled or failed.';
+    });
+  }
+
+  void _launchRazorpayCheckout() {
+    final user = context.read<AuthViewModel>().currentUser;
+    if (_razorpay == null || user == null) {
+      setState(() {
+        _errorBanner =
+            'Razorpay native SDK is available on Android devices. Use Card/UPI/Wallet below.';
+      });
+      return;
+    }
+    final options = {
+      'key': AppEnv.razorpayKeyId,
+      'amount': (_total * 100).round(),
+      'name': 'Epic Infocus',
+      'description': widget.isDirectOrder
+          ? 'Service Order Checkout'
+          : (widget.request?.title ?? 'Escrow Booking'),
+      'prefill': {
+        'contact': user.phone,
+        'email': user.email,
+      },
+    };
+    try {
+      _razorpay!.open(options);
+    } catch (e) {
+      setState(() {
+        _errorBanner = 'Unable to open Razorpay SDK: $e';
+      });
+    }
+  }
+
+  Future<void> _completePaymentRecord({
+    required PaymentMethodType method,
+    required String methodDetail,
+    SavedCard? cardToSave,
+  }) async {
+    final authVm = context.read<AuthViewModel>();
+    final user = authVm.currentUser;
+    if (user == null) return;
+
+    setState(() => _isProcessing = true);
+
+    if (widget.isDirectOrder) {
+      final orderRepo = context.read<CartOrderRepository>();
+      final cartVm = context.read<CartViewModel>();
+      final res = await orderRepo.placeDirectOrder(
+        user: user,
+        items: widget.cartItems!,
+        method: method,
+        methodDetail: methodDetail,
+        promoCode: _appliedPromo,
+        newCardToSave: cardToSave,
+        clearCartAfter: widget.clearCartAfter,
+      );
+
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+
+      res.when(
+        success: (order) async {
+          authVm.refreshUserFromStorage();
+          await cartVm.refreshOrders();
+          if (!mounted) return;
+          final txn = PaymentTransaction(
+            id: order.transactionId,
+            requestId: order.id,
+            quoteId: 'DIRECT',
+            providerName: order.items.first.providerName,
+            serviceTitle: order.items.first.serviceTitle,
+            subtotal: order.subtotal,
+            platformFee: order.platformFee,
+            discount: order.discount,
+            totalAmount: order.totalAmount,
+            method: order.paymentMethod,
+            methodDetail: order.paymentDetail,
+            status: EscrowStatus.heldInEscrow,
+            promoCode: order.promoCode,
+            createdAt: order.createdAt,
+          );
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<PaymentTransaction>(
+              builder: (_) => _PaymentReceiptScreen(
+                transaction: txn,
+                isOrder: true,
+              ),
+            ),
+          );
+        },
+        failure: (err) => setState(() => _errorBanner = err.message),
+      );
+      return;
+    }
+
+    final paymentRepo = context.read<PaymentRepository>();
+    final res = await paymentRepo.processEscrowPayment(
+      user: user,
+      request: widget.request!,
+      quote: widget.quote!,
+      method: method,
+      methodDetail: methodDetail,
+      promoCode: _appliedPromo,
+      newCardToSave: cardToSave,
+    );
+
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+
+    res.when(
+      success: (txn) {
+        authVm.refreshUserFromStorage();
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<PaymentTransaction>(
+            builder: (_) => _PaymentReceiptScreen(transaction: txn),
+          ),
+        );
+      },
+      failure: (err) => setState(() => _errorBanner = err.message),
+    );
+  }
 
   void _applyPromo() {
     final repo = context.read<PaymentRepository>();
@@ -223,87 +373,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final otpOk = await _showOtpVerificationDialog(methodDetail);
     if (!otpOk || !mounted) return;
 
-    setState(() => _isProcessing = true);
-
-    if (widget.isDirectOrder) {
-      final orderRepo = context.read<CartOrderRepository>();
-      final cartVm = context.read<CartViewModel>();
-      final res = await orderRepo.placeDirectOrder(
-        user: user,
-        items: widget.cartItems!,
-        method: _method,
-        methodDetail: methodDetail,
-        promoCode: _appliedPromo,
-        newCardToSave: cardToSave,
-        clearCartAfter: widget.clearCartAfter,
-      );
-
-      if (!mounted) return;
-      setState(() => _isProcessing = false);
-
-      res.when(
-        success: (order) async {
-          authVm.refreshUserFromStorage();
-          await cartVm.refreshOrders();
-          if (!mounted) return;
-          final txn = PaymentTransaction(
-            id: order.transactionId,
-            requestId: order.id,
-            quoteId: 'DIRECT',
-            providerName: order.items.first.providerName,
-            serviceTitle: order.items.first.serviceTitle,
-            subtotal: order.subtotal,
-            platformFee: order.platformFee,
-            discount: order.discount,
-            totalAmount: order.totalAmount,
-            method: order.paymentMethod,
-            methodDetail: order.paymentDetail,
-            status: EscrowStatus.heldInEscrow,
-            promoCode: order.promoCode,
-            createdAt: order.createdAt,
-          );
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute<PaymentTransaction>(
-              builder: (_) => _PaymentReceiptScreen(
-                transaction: txn,
-                isOrder: true,
-              ),
-            ),
-          );
-        },
-        failure: (err) {
-          setState(() => _errorBanner = err.message);
-        },
-      );
-      return;
-    }
-
-    final paymentRepo = context.read<PaymentRepository>();
-    final res = await paymentRepo.processEscrowPayment(
-      user: user,
-      request: widget.request!,
-      quote: widget.quote!,
+    await _completePaymentRecord(
       method: _method,
       methodDetail: methodDetail,
-      promoCode: _appliedPromo,
-      newCardToSave: cardToSave,
-    );
-
-    if (!mounted) return;
-    setState(() => _isProcessing = false);
-
-    res.when(
-      success: (txn) {
-        authVm.refreshUserFromStorage();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<PaymentTransaction>(
-            builder: (_) => _PaymentReceiptScreen(transaction: txn),
-          ),
-        );
-      },
-      failure: (err) {
-        setState(() => _errorBanner = err.message);
-      },
+      cardToSave: cardToSave,
     );
   }
 
@@ -471,9 +544,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ],
 
           const SizedBox(height: 20),
-          Text(
-            'Select Payment Method',
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Select Payment Method',
+                  style: textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              if (!kIsWeb && _razorpay != null)
+                TextButton.icon(
+                  onPressed: _isProcessing ? null : _launchRazorpayCheckout,
+                  icon: const Icon(Icons.bolt_rounded, size: 17),
+                  label: const Text('Razorpay SDK'),
+                ),
+            ],
           ),
           const SizedBox(height: 10),
 
