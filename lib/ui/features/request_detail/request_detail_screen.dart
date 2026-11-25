@@ -553,6 +553,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                           canDecide: req.status == RequestStatus.open ||
                               req.status == RequestStatus.quoted,
                           onAccept: () async {
+                            final currency =
+                                context.read<CurrencyController>();
                             final txn =
                                 await Navigator.of(context).push<PaymentTransaction>(
                               MaterialPageRoute(
@@ -567,7 +569,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                             if (ok && mounted) {
                               widget.onRequestChanged();
                               _showSnack(
-                                'Paid \$${txn.totalAmount.toStringAsFixed(2)} in Escrow & started with ${quote.providerName}!',
+                                'Paid ${currency.formatExact(txn.totalAmount)} in Escrow & started with ${quote.providerName}!',
                               );
                             }
                           },
@@ -575,7 +577,18 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                             final ok = await vm.declineQuote(quote);
                             if (ok && mounted) {
                               widget.onRequestChanged();
-                              _showSnack('Quote declined.');
+                              _showSnack(
+                                'Quote declined. You can undecline within 15 mins.',
+                              );
+                            }
+                          },
+                          onUndecline: () async {
+                            final ok = await vm.undeclineQuote(quote);
+                            if (ok && mounted) {
+                              widget.onRequestChanged();
+                              _showSnack(
+                                '${quote.providerName} quote restored!',
+                              );
                             }
                           },
                           onMessage: () => _openNegotiationDialog(vm, quote),
@@ -910,6 +923,7 @@ class _QuoteCard extends StatelessWidget {
     required this.canDecide,
     required this.onAccept,
     required this.onDecline,
+    required this.onUndecline,
     required this.onMessage,
   });
 
@@ -919,6 +933,7 @@ class _QuoteCard extends StatelessWidget {
   final bool canDecide;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+  final VoidCallback onUndecline;
   final VoidCallback onMessage;
 
   @override
@@ -971,18 +986,23 @@ class _QuoteCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      Text(
-                        '${quote.rating.toStringAsFixed(1)} ★ • ${quote.completedJobs} jobs',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
+                      const SizedBox(height: 2),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            '${quote.rating.toStringAsFixed(1)} ★ • ${quote.completedJobs} jobs',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                          StatusBadge.fromQuoteStatus(quote.status),
+                        ],
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: StatusBadge.fromQuoteStatus(quote.status),
                 ),
               ],
             ),
@@ -1075,6 +1095,14 @@ class _QuoteCard extends StatelessWidget {
                     child: const Text('Accept Quote'),
                   ),
                 ],
+                if (canDecide && quote.canUndecline)
+                  OutlinedButton.icon(
+                    onPressed: isBusy ? null : onUndecline,
+                    icon: const Icon(Icons.undo_rounded, size: 16),
+                    label: Text(
+                      'Undecline (${quote.undeclineMinutesLeft}m left)',
+                    ),
+                  ),
               ],
             ),
           ],

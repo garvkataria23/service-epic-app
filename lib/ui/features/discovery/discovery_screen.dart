@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/location_service.dart';
 import '../../../core/utils/smart_search_engine.dart';
 import '../../../domain/models/service_category.dart';
 import '../../../domain/models/service_item.dart';
@@ -180,21 +181,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                             },
                           ),
                           if (widget.onNotificationsTap != null)
-                            Badge(
-                              isLabelVisible: widget.unreadNotifications > 0,
-                              offset: const Offset(-4, 4),
-                              label: Text('${widget.unreadNotifications}'),
-                              child: IconButton(
-                                visualDensity: VisualDensity.compact,
-                                tooltip: 'Notifications',
-                                onPressed: widget.onNotificationsTap,
-                                icon: const Icon(
-                                  Icons.notifications_outlined,
-                                  size: 21,
+                            Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Badge(
+                                isLabelVisible: widget.unreadNotifications > 0,
+                                offset: const Offset(-2, 2),
+                                label: Text('${widget.unreadNotifications}'),
+                                child: IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  tooltip: 'Notifications',
+                                  onPressed: widget.onNotificationsTap,
+                                  icon: const Icon(
+                                    Icons.notifications_outlined,
+                                    size: 21,
+                                  ),
                                 ),
                               ),
                             ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           FilledButton.tonalIcon(
                             style: FilledButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
@@ -473,6 +477,85 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 ),
               ),
 
+              // Nearby GPS Location & Radius Filter Bar
+              SliverToBoxAdapter(
+                child: Consumer<LocationController>(
+                  builder: (_, loc, _) => Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 36,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              ActionChip(
+                                avatar: loc.isLocating
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        loc.hasGpsLock
+                                            ? Icons.my_location_rounded
+                                            : Icons.location_searching_rounded,
+                                        size: 15,
+                                        color: loc.hasGpsLock
+                                            ? AppColors.success
+                                            : colors.primary,
+                                      ),
+                                label: Text(
+                                  loc.hasGpsLock
+                                      ? loc.locationLabel
+                                      : 'Use Current Location',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: loc.isLocating
+                                    ? null
+                                    : loc.detectCurrentLocation,
+                              ),
+                              const SizedBox(width: 6),
+                              ...LocationController.radiusOptions.map((r) {
+                                final selected = loc.radiusKm == r;
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: ChoiceChip(
+                                    label: Text(
+                                      r == null ? 'All Areas' : '≤ ${r.round()} km',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    selected: selected,
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (_) => loc.setRadius(r),
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                        if (loc.statusMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              loc.statusMessage!,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.warning,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
               // Body States
               if (vm.isLoading)
                 const SliverFillRemaining(
@@ -547,7 +630,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          flex: 3,
                           child: Text(
                             vm.hasActiveSearchOrFilters
                                 ? '${vm.results.length} Smart Matches'
@@ -560,13 +642,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Flexible(
-                          flex: 2,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
                           child: Text(
                             vm.sortOption.label,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
                             style: textTheme.bodySmall?.copyWith(
                               color: colors.primary,
                               fontWeight: FontWeight.w600,
@@ -580,21 +660,35 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
                 // Service Cards List
                 Builder(
-                  builder: (_) {
-                    final displayResults = _savedOnly
+                  builder: (ctx) {
+                    final loc = ctx.watch<LocationController>();
+                    var displayResults = _savedOnly
                         ? vm.results
                             .where((m) => vm.favoriteIds.contains(m.item.id))
                             .toList()
                         : vm.results;
-                    if (_savedOnly && displayResults.isEmpty) {
-                      return const SliverToBoxAdapter(
+                    if (loc.radiusKm != null) {
+                      displayResults = displayResults
+                          .where(
+                            (m) => loc.distanceKmFor(m.item) <= loc.radiusKm!,
+                          )
+                          .toList();
+                    }
+                    if ((_savedOnly || loc.radiusKm != null) &&
+                        displayResults.isEmpty) {
+                      return SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(24),
                           child: EmptyStateWidget(
-                            icon: Icons.favorite_border_rounded,
-                            title: 'No saved services yet',
-                            subtitle:
-                                'Tap the heart icon on any service card to save it for quick access.',
+                            icon: _savedOnly
+                                ? Icons.favorite_border_rounded
+                                : Icons.location_off_outlined,
+                            title: _savedOnly
+                                ? 'No saved services yet'
+                                : 'No services within ${loc.radiusKm!.round()} km',
+                            subtitle: _savedOnly
+                                ? 'Tap the heart icon on any service card to save it for quick access.'
+                                : 'Try increasing your nearby radius or selecting All Areas.',
                           ),
                         ),
                       );
@@ -1177,6 +1271,27 @@ class _ServiceCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.near_me_outlined,
+                              size: 14,
+                              color: AppColors.secondary,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              context
+                                  .watch<LocationController>()
+                                  .formatDistanceFor(service),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.secondary,
                               ),
                             ),
                           ],

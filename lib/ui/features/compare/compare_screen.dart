@@ -38,7 +38,7 @@ class CompareScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isServiceMode ? 'Compare Services' : 'Compare Provider Quotes',
+          isServiceMode ? 'Compare Services' : 'Compare Quotes',
         ),
       ),
       body: isServiceMode

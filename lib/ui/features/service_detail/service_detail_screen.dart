@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/location_service.dart';
 import '../../../domain/models/cart_item.dart';
 import '../../../domain/models/service_item.dart';
 import '../cart/cart_screen.dart';
@@ -283,7 +284,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          service.location,
+                          '${service.location} • ${context.watch<LocationController>().formatDistanceFor(service)}',
                           style: textTheme.bodySmall?.copyWith(
                             color: colors.onSurfaceVariant,
                           ),

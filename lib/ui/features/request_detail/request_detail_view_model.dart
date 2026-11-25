@@ -144,6 +144,28 @@ class RequestDetailViewModel extends ChangeNotifier {
     return ok;
   }
 
+  Future<bool> undeclineQuote(ProviderResponse quote) async {
+    _isActionBusy = true;
+    notifyListeners();
+
+    final res = await _repository.undeclineQuote(quote);
+    _isActionBusy = false;
+
+    final ok = res.when(
+      success: (updated) {
+        final idx = _responses.indexWhere((r) => r.id == updated.id);
+        if (idx != -1) _responses[idx] = updated;
+        return true;
+      },
+      failure: (err) {
+        _errorMessage = err.message;
+        return false;
+      },
+    );
+    notifyListeners();
+    return ok;
+  }
+
   Future<bool> sendMessage(ProviderResponse quote, String text) async {
     if (text.trim().isEmpty) return false;
     _isActionBusy = true;

@@ -148,13 +148,41 @@ class RequestRepository {
   Future<Result<ProviderResponse>> declineQuote(ProviderResponse quote) async {
     try {
       final updated = await _apiClient.updateProviderResponse(
-        quote.copyWith(status: QuoteStatus.declined),
+        quote.copyWith(
+          status: QuoteStatus.declined,
+          declinedAt: DateTime.now(),
+        ),
       );
       return Success(updated);
     } on AppException catch (e) {
       return Failure(e);
     } catch (e) {
       return Failure(NetworkException('Failed to decline quote: $e', e));
+    }
+  }
+
+  Future<Result<ProviderResponse>> undeclineQuote(
+    ProviderResponse quote,
+  ) async {
+    if (!quote.canUndecline) {
+      return const Failure(
+        ValidationException('15-minute undecline window has expired.'),
+      );
+    }
+    try {
+      final updated = await _apiClient.updateProviderResponse(
+        quote.copyWith(
+          status: quote.messages.isNotEmpty
+              ? QuoteStatus.negotiating
+              : QuoteStatus.pending,
+          clearDeclinedAt: true,
+        ),
+      );
+      return Success(updated);
+    } on AppException catch (e) {
+      return Failure(e);
+    } catch (e) {
+      return Failure(NetworkException('Failed to undecline quote: $e', e));
     }
   }
 

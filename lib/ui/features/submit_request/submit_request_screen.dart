@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -43,6 +46,36 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
   late ServiceCategory _category;
   late RequestUrgency _urgency;
   DateTime? _preferredDate;
+  final List<({String name, Uint8List bytes})> _pickedPhotos = [];
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(
+        source: source,
+        imageQuality: 75,
+        maxWidth: 1200,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      final label = 'Photo: ${file.name}';
+      setState(() {
+        _pickedPhotos.add((name: label, bytes: bytes));
+        if (!_attachments.contains(label)) {
+          _attachments.add(label);
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to access camera/gallery on this device.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
   final Map<String, String> _customAnswers = {};
   final Set<String> _attachments = {};
   String? _dateError;
@@ -500,7 +533,73 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
                 color: colors.onSurfaceVariant,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _pickPhoto(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined, size: 17),
+                  label: const Text('Attach Photo'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _pickPhoto(ImageSource.camera),
+                  icon: const Icon(Icons.photo_camera_outlined, size: 17),
+                  label: const Text('Take Photo'),
+                ),
+              ],
+            ),
+            if (_pickedPhotos.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 76,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _pickedPhotos.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, idx) {
+                    final p = _pickedPhotos[idx];
+                    return Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.memory(
+                            p.bytes,
+                            width: 76,
+                            height: 76,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 2,
+                          right: 2,
+                          child: InkWell(
+                            onTap: () => setState(() {
+                              _attachments.remove(p.name);
+                              _pickedPhotos.removeAt(idx);
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 6,
@@ -544,8 +643,9 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
                       label: 'Min budget',
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Min Budget (\$) *',
+                      labelText: 'Min *',
                       prefixText: '\$ ',
+                      errorMaxLines: 2,
                     ),
                   ),
                 ),
@@ -561,8 +661,9 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
                           v,
                         ),
                     decoration: const InputDecoration(
-                      labelText: 'Max Budget (\$) *',
+                      labelText: 'Max *',
                       prefixText: '\$ ',
+                      errorMaxLines: 2,
                     ),
                   ),
                 ),

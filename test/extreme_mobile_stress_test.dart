@@ -105,11 +105,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // 3. Discovery -> Scroll to service cards, select 2 & open CompareScreen
-    await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -350));
+    await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -550));
     await tester.pumpAndSettle();
     final compareIcons = find.byIcon(Icons.compare_arrows_rounded);
     await tester.ensureVisible(compareIcons.at(0));
     await tester.tap(compareIcons.at(0));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -180));
     await tester.pumpAndSettle();
     await tester.ensureVisible(compareIcons.at(1));
     await tester.tap(compareIcons.at(1));

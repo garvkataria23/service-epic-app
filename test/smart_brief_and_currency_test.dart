@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:service_epic/core/utils/currency_formatter.dart';
+import 'package:service_epic/core/utils/location_service.dart';
 import 'package:service_epic/core/utils/smart_brief_generator.dart';
 import 'package:service_epic/core/utils/validators.dart';
+import 'package:service_epic/data/services/seed_data.dart';
+import 'package:service_epic/domain/models/provider_response.dart';
 import 'package:service_epic/domain/models/service_category.dart';
 import 'package:service_epic/domain/models/service_order.dart';
 import 'package:service_epic/domain/models/service_request.dart';
@@ -64,7 +67,43 @@ void main() {
 
     test('Validators.fullName rejects numeric-only input like 133', () {
       expect(Validators.fullName('133'), isNotNull);
+      expect(Validators.fullName('Garv1234'), isNotNull);
       expect(Validators.fullName('Garv Sharma'), isNull);
+    });
+
+    test('ProviderResponse supports 15-minute undecline window', () {
+      final recent = ProviderResponse(
+        id: 'Q1',
+        requestId: 'REQ-1',
+        providerName: 'AquaFlow',
+        providerRole: 'Pro',
+        rating: 4.9,
+        completedJobs: 100,
+        isVerified: true,
+        quotedPrice: 120,
+        estimatedDuration: '1 hr',
+        message: 'Ready',
+        deliverables: const [],
+        status: QuoteStatus.declined,
+        createdAt: DateTime.now(),
+        declinedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+      expect(recent.canUndecline, isTrue);
+      expect(recent.undeclineMinutesLeft, inInclusiveRange(9, 11));
+
+      final expired = recent.copyWith(
+        declinedAt: DateTime.now().subtract(const Duration(minutes: 20)),
+      );
+      expect(expired.canUndecline, isFalse);
+    });
+
+    test('LocationController computes nearby km distance and radius filter', () {
+      final loc = LocationController();
+      final svc = SeedData.services.first;
+      expect(loc.distanceKmFor(svc), greaterThan(0));
+      expect(loc.formatDistanceFor(svc), contains('away'));
+      loc.setRadius(5);
+      expect(loc.radiusKm, 5);
     });
   });
 }

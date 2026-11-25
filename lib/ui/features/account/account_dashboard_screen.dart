@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/config/app_env.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/validators.dart';
@@ -50,6 +49,7 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Account Details'),
         content: SingleChildScrollView(
+          padding: const EdgeInsets.only(top: 8),
           child: Form(
             key: formKey,
             child: Column(
@@ -64,7 +64,7 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                     errorMaxLines: 2,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 TextFormField(
                   controller: emailCtrl,
                   validator: Validators.email,
@@ -74,14 +74,14 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                     errorMaxLines: 2,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 TextFormField(
                   controller: phoneCtrl,
                   validator: Validators.phone,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'Phone Number'),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 TextFormField(
                   controller: cityCtrl,
                   validator: Validators.location,
@@ -944,44 +944,6 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                   onTap: authVm.signOut,
                 ),
               ],
-            ),
-          ),
-
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Cloud & Database Diagnostics',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Firebase: ${AppEnv.firebaseProjectId} (${AppEnv.firebaseInitialized ? "Initialized" : "Local Fallback"})',
-                    style:
-                        TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
-                  ),
-                  FutureBuilder<Map<String, int>>(
-                    future: context.read<AppDatabase>().getTableCounts(),
-                    builder: (context, snap) {
-                      final db = context.read<AppDatabase>();
-                      final counts = snap.data;
-                      return Text(
-                        counts != null
-                            ? '${db.engineName} • services: ${counts['services']} • cart: ${counts['cart_items']} • orders: ${counts['orders']}'
-                            : db.engineName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.onSurfaceVariant,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
             ),
           ),
         ],

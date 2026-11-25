@@ -303,11 +303,15 @@ class _RequestCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: Wrap(
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Wrap(
                       spacing: 6,
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -339,27 +343,21 @@ class _RequestCard extends StatelessWidget {
                               color: req.category.color,
                             ),
                             const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                req.category.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: textTheme.bodySmall?.copyWith(
-                                  color: colors.onSurfaceVariant,
-                                ),
+                            Text(
+                              req.category.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    flex: 2,
-                    child: StatusBadge.fromRequestStatus(req.status),
-                  ),
-                ],
+                    StatusBadge.fromRequestStatus(req.status),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               HighlightedText(

@@ -146,10 +146,16 @@ void main() {
     await tester.tap(find.byTooltip('Back').first);
     await tester.pumpAndSettle();
 
-    // 6. Wallet Tab -> Top Up + ConfirmationBanner
+    // 6. Wallet Tab -> Top Up Payment Flow (UPI/Card + OTP Verification) + ConfirmationBanner
     await tester.tap(find.text('Wallet'));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add_rounded).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Top Up Epic Wallet'), findsOneWidget);
+    await tester.tap(find.text('Proceed to Verify & Pay'));
+    await tester.pumpAndSettle();
+    expect(find.text('Verify Top-Up Payment'), findsOneWidget);
+    await tester.tap(find.text('Verify & Top Up'));
     await tester.pumpAndSettle();
     expect(find.text('Wallet Topped Up'), findsOneWidget);
 

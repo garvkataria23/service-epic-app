@@ -66,6 +66,7 @@ class ProviderResponse {
     required this.status,
     required this.createdAt,
     this.messages = const [],
+    this.declinedAt,
   });
 
   final String id;
@@ -82,12 +83,25 @@ class ProviderResponse {
   final QuoteStatus status;
   final DateTime createdAt;
   final List<ResponseMessage> messages;
+  final DateTime? declinedAt;
+
+  bool get canUndecline {
+    if (status != QuoteStatus.declined || declinedAt == null) return false;
+    return DateTime.now().difference(declinedAt!).inMinutes < 15;
+  }
+
+  int get undeclineMinutesLeft {
+    if (!canUndecline) return 0;
+    return (15 - DateTime.now().difference(declinedAt!).inMinutes).clamp(1, 15);
+  }
 
   ProviderResponse copyWith({
     double? quotedPrice,
     String? estimatedDuration,
     QuoteStatus? status,
     List<ResponseMessage>? messages,
+    DateTime? declinedAt,
+    bool clearDeclinedAt = false,
   }) {
     return ProviderResponse(
       id: id,
@@ -104,6 +118,7 @@ class ProviderResponse {
       status: status ?? this.status,
       createdAt: createdAt,
       messages: messages ?? this.messages,
+      declinedAt: clearDeclinedAt ? null : (declinedAt ?? this.declinedAt),
     );
   }
 
@@ -125,6 +140,9 @@ class ProviderResponse {
       messages: (json['messages'] as List<dynamic>? ?? const [])
           .map((e) => ResponseMessage.fromJson(e as Map<String, dynamic>))
           .toList(),
+      declinedAt: json['declinedAt'] != null
+          ? DateTime.tryParse(json['declinedAt'] as String)
+          : null,
     );
   }
 
@@ -143,5 +161,6 @@ class ProviderResponse {
         'status': status.id,
         'createdAt': createdAt.toIso8601String(),
         'messages': messages.map((m) => m.toJson()).toList(),
+        'declinedAt': declinedAt?.toIso8601String(),
       };
 }
