@@ -1,8 +1,10 @@
 import '../../domain/models/app_notification.dart';
+import '../../domain/models/cart_item.dart';
 import '../../domain/models/payment_transaction.dart';
 import '../../domain/models/provider_response.dart';
 import '../../domain/models/service_category.dart';
 import '../../domain/models/service_item.dart';
+import '../../domain/models/service_order.dart';
 import '../../domain/models/service_request.dart';
 import '../../domain/models/user_profile.dart';
 
@@ -34,22 +36,72 @@ class SeedData {
       ],
       packages: [
         ServicePackage(
+          id: 'pkg-01-a',
           name: 'Quick Inspection',
+          sizeOrScope: 'Single Fixture / 1 Leak Point',
           price: 75,
+          originalPrice: 95,
           deliveryLabel: 'Same Day',
           features: ['Leak detection', 'Minor valve/washer fix', 'Written estimate'],
         ),
         ServicePackage(
+          id: 'pkg-01-b',
           name: 'Standard Repair',
+          sizeOrScope: 'Up to 3 Fixtures / Kitchen + Bath',
           price: 145,
+          originalPrice: 180,
           deliveryLabel: 'Same Day',
           features: ['Pipe/drain clearing', 'Fixture replacement', '90-day warranty'],
         ),
         ServicePackage(
+          id: 'pkg-01-c',
           name: 'Full Overhaul',
+          sizeOrScope: 'Whole Home (Up to 2,500 sq ft)',
           price: 320,
+          originalPrice: 390,
           deliveryLabel: '1–2 Days',
           features: ['Multi-point repiping', 'Water heater tune-up', '1-year warranty'],
+        ),
+      ],
+      skuCode: 'EPIC-PLM-101',
+      warrantyBadge: '90-Day Workmanship & Parts Warranty',
+      returnPolicy:
+          '100% refund if leak or blockage recurs within 7 days and is not resolved on revisit.',
+      replacementPolicy:
+          'Free spare-part & technician replacement within 24 hours at zero extra visit charge.',
+      cancellationPolicy:
+          'Free cancellation or rescheduling up to 2 hours before technician dispatch.',
+      slaGuarantee: '45-Min Dispatch Guarantee or \$15 Instant Wallet Credit',
+      customerReviews: [
+        ServiceReview(
+          id: 'rev-1',
+          reviewerName: 'Rohan Mehta',
+          rating: 5.0,
+          dateLabel: '2 days ago',
+          variantPurchased: 'Standard Repair',
+          comment:
+              'Technician arrived in 32 minutes, replaced the braided hose and cartridge cleanly, and tested pressure before leaving.',
+        ),
+        ServiceReview(
+          id: 'rev-2',
+          reviewerName: 'Ananya Verma',
+          rating: 4.8,
+          dateLabel: '1 week ago',
+          variantPurchased: 'Quick Inspection',
+          comment:
+              'Transparent upfront pricing with zero hidden charges. Highly recommend.',
+        ),
+      ],
+      faqs: [
+        ServiceFaq(
+          question: 'Are spare parts included in the package price?',
+          answer:
+              'Standard washers, seals, and minor fittings are included. Major valves or heaters are billed at MRP with a 90-day replacement warranty.',
+        ),
+        ServiceFaq(
+          question: 'What if the issue reappears after repair?',
+          answer:
+              'You can request a free re-service or replacement technician directly from your Orders tab within 7 days.',
         ),
       ],
       isFeatured: true,
@@ -78,22 +130,58 @@ class SeedData {
       ],
       packages: [
         ServicePackage(
+          id: 'pkg-02-a',
           name: 'MVP Prototype',
+          sizeOrScope: '5 Core Screens • Android + iOS',
           price: 450,
+          originalPrice: 550,
           deliveryLabel: '5 Days',
           features: ['5 core screens', 'REST API integration', 'APK build'],
         ),
         ServicePackage(
+          id: 'pkg-02-b',
           name: 'Production App',
+          sizeOrScope: '12+ Screens • Auth + DB + Tests',
           price: 1200,
+          originalPrice: 1450,
           deliveryLabel: '14 Days',
           features: ['12+ screens', 'Auth & Push notifications', 'Automated tests'],
         ),
         ServicePackage(
+          id: 'pkg-02-c',
           name: 'Enterprise Suite',
+          sizeOrScope: 'Unlimited Screens • Full CI/CD',
           price: 2600,
+          originalPrice: 3100,
           deliveryLabel: '30 Days',
           features: ['Full backend + CI/CD', 'Analytics & Crashlytics', '30-day support'],
+        ),
+      ],
+      skuCode: 'EPIC-DEV-204',
+      warrantyBadge: '30-Day Bug-Fix & Deployment Warranty',
+      returnPolicy:
+          'Milestone-based Escrow: 100% refundable if Milestone 1 prototype does not meet agreed specs.',
+      replacementPolicy:
+          'Free developer reassignment & code refactor within 48 hours on any failed QA milestone.',
+      cancellationPolicy:
+          'Cancel any unstarted milestone for a full pro-rata refund to your original payment method.',
+      slaGuarantee: 'Daily Standup Updates & 99.9% Crash-Free Guarantee',
+      customerReviews: [
+        ServiceReview(
+          id: 'rev-3',
+          reviewerName: 'Vikram Nair',
+          rating: 5.0,
+          dateLabel: '4 days ago',
+          variantPurchased: 'Production App',
+          comment:
+              'Delivered clean MVVM Flutter code, passing widget tests, and a signed Play Store bundle ahead of schedule.',
+        ),
+      ],
+      faqs: [
+        ServiceFaq(
+          question: 'Do I get full source code ownership?',
+          answer:
+              'Yes, 100% IP and Git repository ownership is transferred to you upon milestone completion.',
         ),
       ],
       isFeatured: true,
@@ -824,5 +912,36 @@ class SeedData {
         relatedRequestId: 'REQ-1038',
       ),
     ];
+  }
+
+  static ServiceOrder initialOrder() {
+    final now = DateTime.now();
+    return ServiceOrder(
+      id: 'ORD-78241',
+      items: const [
+        CartItem(
+          id: 'CART-SEED-1',
+          serviceId: 'srv-04',
+          serviceTitle: 'Deep Home & Carpet Sanitization',
+          category: ServiceCategory.cleaningCare,
+          providerName: 'SparkleNest Crew',
+          variantName: 'Full Deep Clean',
+          sizeOrScope: '2–3 BHK (Up to 1,500 sq ft)',
+          unitPrice: 165,
+          quantity: 1,
+          deliveryLabel: '5 Hours',
+        ),
+      ],
+      subtotal: 165.00,
+      platformFee: 4.95,
+      discount: 16.50,
+      totalAmount: 153.45,
+      paymentMethod: PaymentMethodType.card,
+      paymentDetail: 'Visa •••• 4242',
+      transactionId: 'TXN-88412',
+      status: OrderStatus.completed,
+      promoCode: 'EPIC10',
+      createdAt: now.subtract(const Duration(days: 3)),
+    );
   }
 }

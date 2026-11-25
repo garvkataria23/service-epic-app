@@ -4,22 +4,31 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/repositories/cart_order_repository.dart';
 import '../../../data/repositories/payment_repository.dart';
+import '../../../domain/models/cart_item.dart';
 import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/provider_response.dart';
 import '../../../domain/models/service_request.dart';
 import '../../../domain/models/user_profile.dart';
 import '../auth/auth_view_model.dart';
+import '../cart/cart_view_model.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({
     super.key,
-    required this.request,
-    required this.quote,
+    this.request,
+    this.quote,
+    this.cartItems,
+    this.clearCartAfter = false,
   });
 
-  final ServiceRequest request;
-  final ProviderResponse quote;
+  final ServiceRequest? request;
+  final ProviderResponse? quote;
+  final List<CartItem>? cartItems;
+  final bool clearCartAfter;
+
+  bool get isDirectOrder => cartItems != null && cartItems!.isNotEmpty;
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -70,7 +79,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  double get _subtotal => widget.quote.quotedPrice;
+  double get _subtotal => widget.isDirectOrder
+      ? widget.cartItems!.fold<double>(0, (sum, i) => sum + i.lineTotal)
+      : (widget.quote?.quotedPrice ?? 0);
   double get _platformFee =>
       double.parse((_subtotal * 0.03).toStringAsFixed(2));
   double get _discount =>
@@ -214,11 +225,64 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     setState(() => _isProcessing = true);
 
+    if (widget.isDirectOrder) {
+      final orderRepo = context.read<CartOrderRepository>();
+      final cartVm = context.read<CartViewModel>();
+      final res = await orderRepo.placeDirectOrder(
+        user: user,
+        items: widget.cartItems!,
+        method: _method,
+        methodDetail: methodDetail,
+        promoCode: _appliedPromo,
+        newCardToSave: cardToSave,
+        clearCartAfter: widget.clearCartAfter,
+      );
+
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
+
+      res.when(
+        success: (order) async {
+          authVm.refreshUserFromStorage();
+          await cartVm.refreshOrders();
+          if (!mounted) return;
+          final txn = PaymentTransaction(
+            id: order.transactionId,
+            requestId: order.id,
+            quoteId: 'DIRECT',
+            providerName: order.items.first.providerName,
+            serviceTitle: order.items.first.serviceTitle,
+            subtotal: order.subtotal,
+            platformFee: order.platformFee,
+            discount: order.discount,
+            totalAmount: order.totalAmount,
+            method: order.paymentMethod,
+            methodDetail: order.paymentDetail,
+            status: EscrowStatus.heldInEscrow,
+            promoCode: order.promoCode,
+            createdAt: order.createdAt,
+          );
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute<PaymentTransaction>(
+              builder: (_) => _PaymentReceiptScreen(
+                transaction: txn,
+                isOrder: true,
+              ),
+            ),
+          );
+        },
+        failure: (err) {
+          setState(() => _errorBanner = err.message);
+        },
+      );
+      return;
+    }
+
     final paymentRepo = context.read<PaymentRepository>();
     final res = await paymentRepo.processEscrowPayment(
       user: user,
-      request: widget.request,
-      quote: widget.quote,
+      request: widget.request!,
+      quote: widget.quote!,
       method: _method,
       methodDetail: methodDetail,
       promoCode: _appliedPromo,
@@ -311,18 +375,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    widget.request.title,
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  if (widget.isDirectOrder) ...[
+                    ...widget.cartItems!.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.quantity}x ${item.serviceTitle} (${item.variantName})',
+                                style: textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '\$${item.lineTotal.toStringAsFixed(2)}',
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Provider: ${widget.quote.providerName} • ${widget.request.id}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colors.onSurfaceVariant,
+                  ] else ...[
+                    Text(
+                      widget.request?.title ?? '',
+                      style: textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                    Text(
+                      'Provider: ${widget.quote?.providerName ?? ''} • ${widget.request?.id ?? ''}',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   const Divider(height: 22),
                   _PriceRow('Quoted Amount', '\$${_subtotal.toStringAsFixed(2)}'),
                   _PriceRow(
@@ -691,9 +779,13 @@ class _PriceRow extends StatelessWidget {
 }
 
 class _PaymentReceiptScreen extends StatelessWidget {
-  const _PaymentReceiptScreen({required this.transaction});
+  const _PaymentReceiptScreen({
+    required this.transaction,
+    this.isOrder = false,
+  });
 
   final PaymentTransaction transaction;
+  final bool isOrder;
 
   @override
   Widget build(BuildContext context) {
@@ -741,7 +833,9 @@ class _PaymentReceiptScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     const Divider(),
                     _PriceRow('Transaction ID', transaction.id),
-                    _PriceRow('Request ID', transaction.requestId),
+                    _PriceRow(
+                        isOrder ? 'Order ID' : 'Request ID',
+                        transaction.requestId),
                     _PriceRow('Provider', transaction.providerName),
                     _PriceRow('Payment Method', transaction.methodDetail),
                     _PriceRow('Status', transaction.status.label,
@@ -755,7 +849,7 @@ class _PaymentReceiptScreen extends StatelessWidget {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () => Navigator.of(context).pop(transaction),
-                        child: const Text('Back to Request'),
+                        child: Text(isOrder ? 'Done' : 'Back to Request'),
                       ),
                     ),
                   ],

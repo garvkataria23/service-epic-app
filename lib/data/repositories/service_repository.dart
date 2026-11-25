@@ -1,5 +1,6 @@
 import '../../core/errors/app_exception.dart';
 import '../../domain/models/service_item.dart';
+import '../services/app_database.dart';
 import '../services/local_storage_service.dart';
 import '../services/service_api_client.dart';
 
@@ -7,11 +8,14 @@ class ServiceRepository {
   ServiceRepository({
     required ServiceApiClient apiClient,
     required LocalStorageService storage,
+    AppDatabase? database,
   })  : _apiClient = apiClient,
-        _storage = storage;
+        _storage = storage,
+        _database = database;
 
   final ServiceApiClient _apiClient;
   final LocalStorageService _storage;
+  final AppDatabase? _database;
 
   List<ServiceItem>? _cachedServices;
 
@@ -20,7 +24,15 @@ class ServiceRepository {
       return Success(_cachedServices!);
     }
     try {
+      if (!forceRefresh && _database != null && !_storage.simulateApiError) {
+        final dbServices = await _database.getAllServices();
+        if (dbServices.isNotEmpty) {
+          _cachedServices = dbServices;
+          return Success(dbServices);
+        }
+      }
       final services = await _apiClient.fetchServices();
+      await _database?.upsertServices(services);
       _cachedServices = services;
       return Success(services);
     } on AppException catch (e) {

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../domain/models/cart_item.dart';
 import '../../../domain/models/service_item.dart';
+import '../cart/cart_screen.dart';
+import '../cart/cart_view_model.dart';
+import '../payment/checkout_screen.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
   const ServiceDetailScreen({
@@ -24,20 +29,101 @@ class ServiceDetailScreen extends StatefulWidget {
 
 class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   int _selectedPackageIndex = 0;
+  int _quantity = 1;
+
+  ServicePackage get _effectivePackage {
+    if (widget.service.packages.isNotEmpty) {
+      return widget.service.packages[_selectedPackageIndex];
+    }
+    return ServicePackage(
+      id: '${widget.service.id}-std',
+      name: 'Standard Service',
+      sizeOrScope: widget.service.priceUnit,
+      price: widget.service.basePrice,
+      deliveryLabel: widget.service.formattedResponseTime,
+      features: widget.service.highlights,
+    );
+  }
+
+  Future<void> _handleAddToCart() async {
+    final cartVm = context.read<CartViewModel>();
+    final pkg = _effectivePackage;
+    await cartVm.addToCart(
+      service: widget.service,
+      package: pkg,
+      quantity: _quantity,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Added ${_quantity}x ${widget.service.title} (${pkg.name}) to Cart',
+        ),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'View Cart',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const CartScreen()),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleBuyNow() async {
+    final pkg = _effectivePackage;
+    final directItem = CartItem(
+      id: 'DIRECT-${DateTime.now().millisecondsSinceEpoch}',
+      serviceId: widget.service.id,
+      serviceTitle: widget.service.title,
+      category: widget.service.category,
+      providerName: widget.service.providerName,
+      variantName: pkg.name,
+      sizeOrScope:
+          pkg.sizeOrScope.isNotEmpty ? pkg.sizeOrScope : pkg.deliveryLabel,
+      unitPrice: pkg.price,
+      quantity: _quantity,
+      deliveryLabel: pkg.deliveryLabel,
+    );
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreen(
+          cartItems: [directItem],
+          clearCartAfter: false,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final service = widget.service;
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final selectedPkg = service.packages.isNotEmpty
-        ? service.packages[_selectedPackageIndex]
-        : null;
+    final cartVm = context.watch<CartViewModel>();
+    final selectedPkg = _effectivePackage;
+    final totalPreview = selectedPkg.price * _quantity;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(service.category.label),
         actions: [
+          Badge(
+            isLabelVisible: cartVm.totalItemCount > 0,
+            label: Text('${cartVm.totalItemCount}'),
+            child: IconButton(
+              tooltip: 'Open Cart',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const CartScreen()),
+                );
+              },
+              icon: const Icon(Icons.shopping_cart_outlined),
+            ),
+          ),
           IconButton(
             tooltip: widget.isFavorite ? 'Remove from saved' : 'Save service',
             onPressed: widget.onToggleFavorite,
@@ -51,7 +137,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 110),
         children: [
           // Header Card
           Card(
@@ -100,7 +186,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                               ],
                             ),
                             Text(
-                              service.providerTitle,
+                              '${service.providerTitle} • SKU: ${service.skuCode}',
                               style: textTheme.bodySmall?.copyWith(
                                 color: colors.onSurfaceVariant,
                               ),
@@ -120,14 +206,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   Wrap(
-                    spacing: 12,
+                    spacing: 10,
                     runSpacing: 8,
                     children: [
                       _MetricPill(
                         icon: Icons.star_rounded,
                         iconColor: AppColors.accentAmber,
                         label:
-                            '${service.rating.toStringAsFixed(1)} (${service.reviewCount} reviews)',
+                            '${service.rating.toStringAsFixed(1)} (${service.reviewCount})',
                       ),
                       _MetricPill(
                         icon: Icons.bolt_rounded,
@@ -135,9 +221,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                         label: 'Replies ${service.formattedResponseTime}',
                       ),
                       _MetricPill(
-                        icon: Icons.task_alt_rounded,
+                        icon: Icons.verified_user_rounded,
                         iconColor: colors.primary,
-                        label: '${service.completedJobs} jobs done',
+                        label: service.warrantyBadge,
                       ),
                     ],
                   ),
@@ -168,50 +254,53 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
-          // Key Highlights
-          Text(
-            'What’s Included',
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: service.highlights
-                    .map(
-                      (h) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_rounded,
-                              size: 18,
-                              color: AppColors.success,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(h, style: textTheme.bodyMedium),
-                            ),
-                          ],
+          // Size / Scope / Tier Selection + Quantity
+          if (service.packages.isNotEmpty) ...[
+            Row(
+              children: [
+                Text(
+                  'Select Size / Scope Tier',
+                  style: textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.outlineVariant),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _quantity > 1
+                            ? () => setState(() => _quantity--)
+                            : null,
+                        icon: const Icon(Icons.remove_rounded, size: 18),
+                      ),
+                      Text(
+                        'Qty: $_quantity',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
                         ),
                       ),
-                    )
-                    .toList(),
-              ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _quantity < 10
+                            ? () => setState(() => _quantity++)
+                            : null,
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-
-          if (service.packages.isNotEmpty) ...[
-            const SizedBox(height: 18),
-            Text(
-              'Select a Service Tier',
-              style:
-                  textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             ...List.generate(service.packages.length, (idx) {
               final pkg = service.packages[idx];
               final isSelected = idx == _selectedPackageIndex;
@@ -250,40 +339,84 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                pkg.name,
-                                style: textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    pkg.name,
+                                    style: textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  if (pkg.sizeOrScope.isNotEmpty)
+                                    Text(
+                                      pkg.sizeOrScope,
+                                      style: textTheme.bodySmall?.copyWith(
+                                        color: colors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
-                            Text(
-                              '\$${pkg.price.toStringAsFixed(0)}',
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: colors.primary,
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (pkg.originalPrice != null) ...[
+                                      Text(
+                                        '\$${pkg.originalPrice!.toStringAsFixed(0)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Text(
+                                      '\$${pkg.price.toStringAsFixed(0)}',
+                                      style: textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: colors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (pkg.discountPercent > 0)
+                                  Text(
+                                    '${pkg.discountPercent}% OFF',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.success,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Padding(
                           padding: const EdgeInsets.only(left: 28),
                           child: Text(
-                            'Est. Turnaround: ${pkg.deliveryLabel}',
+                            'Turnaround: ${pkg.deliveryLabel}',
                             style: textTheme.bodySmall?.copyWith(
                               color: colors.onSurfaceVariant,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         ...pkg.features.map(
                           (f) => Padding(
                             padding: const EdgeInsets.only(left: 28, top: 3),
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.subdirectory_arrow_right_rounded,
+                                  Icons.check_rounded,
                                   size: 14,
                                   color: colors.primary,
                                 ),
@@ -303,19 +436,159 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             }),
           ],
 
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: service.tags
-                .map(
-                  (t) => Chip(
-                    label: Text('#$t'),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                )
-                .toList(),
+          const SizedBox(height: 8),
+
+          // Custom Quote CTA
+          OutlinedButton.icon(
+            onPressed: () => widget.onRequestService(service, selectedPkg),
+            icon: const Icon(Icons.assignment_add),
+            label: const Text('Need Custom Scope? Submit Requirement for Quotes'),
           ),
+
+          const SizedBox(height: 20),
+
+          // Return, Replacement & Warranty Policies
+          Text(
+            'Return, Replacement & Protection Policies',
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  _PolicyRow(
+                    icon: Icons.assignment_return_outlined,
+                    color: AppColors.info,
+                    title: 'Return & Refund Policy',
+                    body: service.returnPolicy,
+                  ),
+                  const Divider(height: 18),
+                  _PolicyRow(
+                    icon: Icons.autorenew_rounded,
+                    color: AppColors.success,
+                    title: 'Replacement / Re-Service Policy',
+                    body: service.replacementPolicy,
+                  ),
+                  const Divider(height: 18),
+                  _PolicyRow(
+                    icon: Icons.event_busy_outlined,
+                    color: AppColors.warning,
+                    title: 'Cancellation Policy',
+                    body: service.cancellationPolicy,
+                  ),
+                  const Divider(height: 18),
+                  _PolicyRow(
+                    icon: Icons.verified_user_outlined,
+                    color: colors.primary,
+                    title: 'SLA Guarantee',
+                    body: service.slaGuarantee,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (service.customerReviews.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              'Verified Client Reviews (${service.customerReviews.length})',
+              style:
+                  textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            ...service.customerReviews.map(
+              (r) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              r.reviewerName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (r.verifiedPurchase) ...[
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.verified_rounded,
+                                size: 14,
+                                color: AppColors.success,
+                              ),
+                            ],
+                            const Spacer(),
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: AppColors.accentAmber,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              r.rating.toStringAsFixed(1),
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        if (r.variantPurchased.isNotEmpty)
+                          Text(
+                            'Purchased: ${r.variantPurchased} • ${r.dateLabel}',
+                            style: textTheme.labelSmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        Text(r.comment, style: textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          if (service.faqs.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Frequently Asked Questions',
+              style:
+                  textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: service.faqs
+                    .map(
+                      (faq) => ExpansionTile(
+                        title: Text(
+                          faq.question,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                            child: Text(
+                              faq.answer,
+                              style: textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -336,12 +609,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    selectedPkg != null ? selectedPkg.name : 'Starting at',
+                    'Total ($_quantity×)',
                     style: textTheme.bodySmall
                         ?.copyWith(color: colors.onSurfaceVariant),
                   ),
                   Text(
-                    '\$${(selectedPkg?.price ?? service.basePrice).toStringAsFixed(0)}',
+                    '\$${totalPreview.toStringAsFixed(0)}',
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: colors.primary,
@@ -349,19 +622,74 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   ),
                 ],
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _handleAddToCart,
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 18),
+                  label: const Text('Add to Cart'),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () =>
-                      widget.onRequestService(service, selectedPkg),
-                  icon: const Icon(Icons.send_rounded),
-                  label: const Text('Submit Requirement'),
+                  onPressed: _handleBuyNow,
+                  icon: const Icon(Icons.flash_on_rounded, size: 18),
+                  label: const Text('Buy Now'),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PolicyRow extends StatelessWidget {
+  const _PolicyRow({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

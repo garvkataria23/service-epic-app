@@ -7,12 +7,15 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/validators.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/request_repository.dart';
+import '../../data/services/app_database.dart';
 import '../../data/services/local_storage_service.dart';
 import '../../domain/models/app_notification.dart';
 import '../../domain/models/service_item.dart';
 import '../../domain/models/service_request.dart';
 import 'auth/auth_screen.dart';
 import 'auth/auth_view_model.dart';
+import 'cart/cart_screen.dart';
+import 'cart/cart_view_model.dart';
 import 'discovery/discovery_screen.dart';
 import 'discovery/discovery_view_model.dart';
 import 'payment/transactions_screen.dart';
@@ -609,16 +612,36 @@ class _ProfileTabState extends State<_ProfileTab> {
             child: Column(
               children: [
                 ListTile(
+                  leading: const Icon(Icons.shopping_bag_outlined),
+                  title: const Text('My Cart & Orders'),
+                  subtitle: const Text(
+                    'View saved cart items, placed orders & Return / Replace',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CartScreen(initialTab: 1),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.restore_rounded),
                   title: const Text('Reset Demo Data'),
                   subtitle: const Text(
                     'Restore initial services, requests, quotes & escrow ledger',
                   ),
                   onTap: () async {
+                    final db = context.read<AppDatabase>();
+                    final cartVm = context.read<CartViewModel>();
                     await storage.clearAllData();
                     await storage.setSimulateApiError(false);
+                    await db.resetDatabase();
                     await discoveryVm.loadServices(forceRefresh: true);
                     await requestsVm.loadRequests();
+                    await cartVm.loadAll();
                     if (!context.mounted) return;
                     setState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -667,6 +690,34 @@ class _ProfileTabState extends State<_ProfileTab> {
                   Text(
                     'Razorpay Test Key: ${AppEnv.razorpayKeyId}',
                     style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+                  ),
+                  const Divider(height: 18),
+                  FutureBuilder<Map<String, int>>(
+                    future: context.read<AppDatabase>().getTableCounts(),
+                    builder: (context, snap) {
+                      final db = context.read<AppDatabase>();
+                      final counts = snap.data;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Database Engine: ${db.engineName}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (counts != null)
+                            Text(
+                              'Tables → services: ${counts['services']} • cart_items: ${counts['cart_items']} • orders: ${counts['orders']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),

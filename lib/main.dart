@@ -7,14 +7,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/config/app_env.dart';
 import 'core/theme/app_theme.dart';
 import 'data/repositories/auth_repository.dart';
+import 'data/repositories/cart_order_repository.dart';
 import 'data/repositories/payment_repository.dart';
 import 'data/repositories/request_repository.dart';
 import 'data/repositories/service_repository.dart';
+import 'data/services/app_database.dart';
 import 'data/services/local_storage_service.dart';
 import 'data/services/service_api_client.dart';
 import 'firebase_options.dart';
 import 'ui/features/auth/auth_screen.dart';
 import 'ui/features/auth/auth_view_model.dart';
+import 'ui/features/cart/cart_view_model.dart';
 import 'ui/features/discovery/discovery_view_model.dart';
 import 'ui/features/home_shell.dart';
 import 'ui/features/requests/requests_view_model.dart';
@@ -55,19 +58,31 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final storage = LocalStorageService(prefs);
+  final database = await AppDatabase.open(prefs);
   final apiClient = ServiceApiClient(storage: storage);
-  final serviceRepo = ServiceRepository(apiClient: apiClient, storage: storage);
+  final serviceRepo = ServiceRepository(
+    apiClient: apiClient,
+    storage: storage,
+    database: database,
+  );
   final requestRepo = RequestRepository(apiClient: apiClient);
   final authRepo = AuthRepository(storage: storage);
   final paymentRepo = PaymentRepository(storage: storage);
+  final cartOrderRepo = CartOrderRepository(
+    database: database,
+    storage: storage,
+    paymentRepository: paymentRepo,
+  );
 
   runApp(
     ServiceEpicApp(
       storage: storage,
+      database: database,
       serviceRepository: serviceRepo,
       requestRepository: requestRepo,
       authRepository: authRepo,
       paymentRepository: paymentRepo,
+      cartOrderRepository: cartOrderRepo,
     ),
   );
 }
@@ -76,17 +91,21 @@ class ServiceEpicApp extends StatefulWidget {
   const ServiceEpicApp({
     super.key,
     required this.storage,
+    required this.database,
     required this.serviceRepository,
     required this.requestRepository,
     required this.authRepository,
     required this.paymentRepository,
+    required this.cartOrderRepository,
   });
 
   final LocalStorageService storage;
+  final AppDatabase database;
   final ServiceRepository serviceRepository;
   final RequestRepository requestRepository;
   final AuthRepository authRepository;
   final PaymentRepository paymentRepository;
+  final CartOrderRepository cartOrderRepository;
 
   @override
   State<ServiceEpicApp> createState() => _ServiceEpicAppState();
@@ -111,12 +130,18 @@ class _ServiceEpicAppState extends State<ServiceEpicApp> {
     return MultiProvider(
       providers: [
         Provider<LocalStorageService>.value(value: widget.storage),
+        Provider<AppDatabase>.value(value: widget.database),
         Provider<ServiceRepository>.value(value: widget.serviceRepository),
         Provider<RequestRepository>.value(value: widget.requestRepository),
         Provider<AuthRepository>.value(value: widget.authRepository),
         Provider<PaymentRepository>.value(value: widget.paymentRepository),
+        Provider<CartOrderRepository>.value(value: widget.cartOrderRepository),
         ChangeNotifierProvider<AuthViewModel>(
           create: (_) => AuthViewModel(repository: widget.authRepository),
+        ),
+        ChangeNotifierProvider<CartViewModel>(
+          create: (_) =>
+              CartViewModel(repository: widget.cartOrderRepository)..loadAll(),
         ),
         ChangeNotifierProvider<DiscoveryViewModel>(
           create: (_) =>

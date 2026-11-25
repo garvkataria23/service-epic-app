@@ -9,6 +9,8 @@ import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_retry_widget.dart';
 import '../../core/widgets/highlighted_text.dart';
 import '../../core/widgets/smart_search_bar.dart';
+import '../cart/cart_screen.dart';
+import '../cart/cart_view_model.dart';
 import '../service_detail/service_detail_screen.dart';
 import 'discovery_view_model.dart';
 
@@ -106,6 +108,27 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                             ),
                           ],
                         ),
+                      ),
+                      Builder(
+                        builder: (ctx) {
+                          final cartCount =
+                              ctx.watch<CartViewModel>().totalItemCount;
+                          return Badge(
+                            isLabelVisible: cartCount > 0,
+                            label: Text('$cartCount'),
+                            child: IconButton(
+                              tooltip: 'Cart & Orders',
+                              onPressed: () {
+                                Navigator.of(ctx).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => const CartScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.shopping_cart_outlined),
+                            ),
+                          );
+                        },
                       ),
                       if (widget.onNotificationsTap != null)
                         Badge(
