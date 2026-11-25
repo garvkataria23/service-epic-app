@@ -502,22 +502,38 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                                     : Icon(
                                         loc.hasGpsLock
                                             ? Icons.my_location_rounded
-                                            : Icons.location_searching_rounded,
+                                            : loc.hasManualArea
+                                                ? Icons.location_on_rounded
+                                                : Icons.location_searching_rounded,
                                         size: 15,
-                                        color: loc.hasGpsLock
+                                        color: loc.hasSelectedArea
                                             ? AppColors.success
                                             : colors.primary,
                                       ),
-                                label: Text(
-                                  loc.hasGpsLock
-                                      ? loc.locationLabel
-                                      : 'Use Current Location',
-                                  style: const TextStyle(fontSize: 11),
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      loc.hasSelectedArea
+                                          ? loc.locationLabel
+                                          : 'Set Location',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    const SizedBox(width: 2),
+                                    const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      size: 14,
+                                    ),
+                                  ],
                                 ),
                                 visualDensity: VisualDensity.compact,
-                                onPressed: loc.isLocating
-                                    ? null
-                                    : loc.detectCurrentLocation,
+                                onPressed: () => showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  useSafeArea: true,
+                                  showDragHandle: true,
+                                  builder: (_) => const _AreaPickerSheet(),
+                                ),
                               ),
                               const SizedBox(width: 6),
                               ...LocationController.radiusOptions.map((r) {
@@ -1472,6 +1488,185 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AreaPickerSheet extends StatefulWidget {
+  const _AreaPickerSheet();
+
+  @override
+  State<_AreaPickerSheet> createState() => _AreaPickerSheetState();
+}
+
+class _AreaPickerSheetState extends State<_AreaPickerSheet> {
+  final _searchCtrl = TextEditingController();
+  List<AreaSuggestion> _suggestions = LocationController.presetAreas;
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _runSearch(String query) async {
+    setState(() => _searching = true);
+    final results = await context.read<LocationController>().searchAreas(query);
+    if (!mounted) return;
+    setState(() {
+      _suggestions = results;
+      _searching = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = context.watch<LocationController>();
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final typed = _searchCtrl.text.trim();
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 20 + bottomInset),
+        child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Select Your Area',
+              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              loc.hasSelectedArea
+                  ? 'Current: ${loc.locationLabel}'
+                  : 'Use live GPS or search/enter your area manually',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.tonalIcon(
+              onPressed: loc.isLocating
+                  ? null
+                  : () async {
+                      await loc.detectCurrentLocation();
+                      if (context.mounted && loc.hasGpsLock) {
+                        Navigator.pop(context);
+                      }
+                    },
+              icon: loc.isLocating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location_rounded),
+              label: Text(
+                loc.isLocating
+                    ? 'Detecting current area...'
+                    : 'Use Current GPS Location',
+              ),
+            ),
+            if (loc.statusMessage != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                loc.statusMessage!,
+                style: TextStyle(fontSize: 12, color: colors.error),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchCtrl,
+                    textInputAction: TextInputAction.search,
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: _runSearch,
+                    decoration: const InputDecoration(
+                      labelText: 'Search or enter area manually',
+                      hintText: 'e.g. Andheri West, Mumbai',
+                      prefixIcon: Icon(Icons.search_rounded),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed:
+                      _searching ? null : () => _runSearch(_searchCtrl.text),
+                  child: _searching
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Find'),
+                ),
+              ],
+            ),
+            if (typed.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await loc.setManualArea(typed);
+                  if (context.mounted) Navigator.pop(context);
+                },
+                icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
+                label: Text('Use "$typed"'),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Text(
+              typed.isEmpty ? 'Popular Areas' : 'Matching Areas',
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (_suggestions.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No exact match found. Tap "Use \\"$typed\\"" above to set it manually.',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _suggestions.map((area) {
+                  final selected = loc.locationLabel == area.label;
+                  return ActionChip(
+                    avatar: Icon(
+                      Icons.place_outlined,
+                      size: 16,
+                      color: selected ? AppColors.success : colors.primary,
+                    ),
+                    label: Text(area.label),
+                    onPressed: () {
+                      loc.selectArea(area);
+                      Navigator.pop(context);
+                    },
+                  );
+                }).toList(),
+              ),
+          ],
+        ),
+      ),
       ),
     );
   }

@@ -49,43 +49,69 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Account Details'),
         content: SingleChildScrollView(
-          padding: const EdgeInsets.only(top: 8),
           child: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'Full Name',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 5),
                 TextFormField(
                   controller: nameCtrl,
                   validator: Validators.fullName,
                   textCapitalization: TextCapitalization.words,
                   decoration: const InputDecoration(
-                    labelText: 'Full Name',
+                    hintText: 'Enter your full name',
                     errorMaxLines: 2,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+                const Text(
+                  'Email ID',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 5),
                 TextFormField(
                   controller: emailCtrl,
                   validator: Validators.email,
                   keyboardType: TextInputType.emailAddress,
                   decoration: const InputDecoration(
-                    labelText: 'Email ID',
+                    hintText: 'Enter your email address',
                     errorMaxLines: 2,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+                const Text(
+                  'Phone Number',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 5),
                 TextFormField(
                   controller: phoneCtrl,
                   validator: Validators.phone,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone Number'),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter phone number',
+                    errorMaxLines: 2,
+                  ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+                const Text(
+                  'City',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 5),
                 TextFormField(
                   controller: cityCtrl,
                   validator: Validators.location,
-                  decoration: const InputDecoration(labelText: 'City'),
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your city',
+                    errorMaxLines: 2,
+                  ),
                 ),
               ],
             ),

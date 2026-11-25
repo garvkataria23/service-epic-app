@@ -1,16 +1,32 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 import '../../domain/models/service_item.dart';
 
-/// Manages user's current GPS location, nearby radius filter, and distance
-/// calculation in kilometers for services.
+class AreaSuggestion {
+  const AreaSuggestion({
+    required this.label,
+    required this.lat,
+    required this.lng,
+  });
+
+  final String label;
+  final double lat;
+  final double lng;
+}
+
+/// Manages user's current GPS location, manual area selection, nearby radius
+/// filter, and distance calculation in kilometers for services.
 class LocationController extends ChangeNotifier {
   double _userLat = 28.6139;
   double _userLng = 77.2090;
   bool _hasGpsLock = false;
+  bool _hasManualArea = false;
   bool _isLocating = false;
   String _locationLabel = 'Default Area';
   String? _statusMessage;
@@ -19,6 +35,8 @@ class LocationController extends ChangeNotifier {
   double get userLat => _userLat;
   double get userLng => _userLng;
   bool get hasGpsLock => _hasGpsLock;
+  bool get hasManualArea => _hasManualArea;
+  bool get hasSelectedArea => _hasGpsLock || _hasManualArea;
   bool get isLocating => _isLocating;
   String get locationLabel => _locationLabel;
   String? get statusMessage => _statusMessage;
@@ -26,10 +44,109 @@ class LocationController extends ChangeNotifier {
 
   static const List<double?> radiusOptions = [null, 2, 5, 10, 25];
 
+  static const List<AreaSuggestion> presetAreas = [
+    AreaSuggestion(label: 'Mumbai', lat: 19.0760, lng: 72.8777),
+    AreaSuggestion(label: 'Delhi NCR', lat: 28.6139, lng: 77.2090),
+    AreaSuggestion(label: 'Bengaluru', lat: 12.9716, lng: 77.5946),
+    AreaSuggestion(label: 'Pune', lat: 18.5204, lng: 73.8567),
+    AreaSuggestion(label: 'Hyderabad', lat: 17.3850, lng: 78.4867),
+    AreaSuggestion(label: 'San Francisco', lat: 37.7749, lng: -122.4194),
+  ];
+
   void setRadius(double? km) {
     if (_radiusKm == km) return;
     _radiusKm = km;
     notifyListeners();
+  }
+
+  void selectArea(AreaSuggestion area) {
+    _userLat = area.lat;
+    _userLng = area.lng;
+    _locationLabel = area.label;
+    _hasGpsLock = false;
+    _hasManualArea = true;
+    _statusMessage = null;
+    notifyListeners();
+  }
+
+  Future<void> setManualArea(String rawQuery) async {
+    final trimmed = rawQuery.trim();
+    if (trimmed.isEmpty) return;
+
+    final results = await searchAreas(trimmed);
+    if (results.isNotEmpty) {
+      selectArea(results.first);
+      return;
+    }
+
+    // Fallback when offline or custom neighborhood string
+    _locationLabel = trimmed;
+    _hasGpsLock = false;
+    _hasManualArea = true;
+    _statusMessage = null;
+    notifyListeners();
+  }
+
+  Future<List<AreaSuggestion>> searchAreas(String rawQuery) async {
+    final query = rawQuery.trim();
+    if (query.isEmpty) return presetAreas;
+
+    final matches = <AreaSuggestion>[];
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/search?format=jsonv2&q=${Uri.encodeQueryComponent(query)}&limit=5&addressdetails=1',
+      );
+      final resp = await http
+          .get(uri, headers: const {'User-Agent': 'ServiceEpicApp/1.0'})
+          .timeout(const Duration(seconds: 4));
+      if (resp.statusCode == 200) {
+        final list = jsonDecode(resp.body) as List<dynamic>;
+        for (final item in list) {
+          final map = item as Map<String, dynamic>;
+          final lat = double.tryParse(map['lat']?.toString() ?? '');
+          final lng = double.tryParse(map['lon']?.toString() ?? '');
+          if (lat == null || lng == null) continue;
+          final addr = map['address'] as Map<String, dynamic>?;
+          final name = (addr?['suburb'] ??
+                  addr?['neighbourhood'] ??
+                  addr?['town'] ??
+                  addr?['city'] ??
+                  map['name'] ??
+                  query)
+              .toString()
+              .trim();
+          final city = (addr?['city'] ?? addr?['state'] ?? '').toString().trim();
+          final label = (city.isNotEmpty && city != name)
+              ? '$name, $city'
+              : name;
+          matches.add(AreaSuggestion(label: label, lat: lat, lng: lng));
+        }
+      }
+    } catch (_) {}
+
+    if (matches.isEmpty && !kIsWeb) {
+      try {
+        final locs = await locationFromAddress(query);
+        if (locs.isNotEmpty) {
+          matches.add(
+            AreaSuggestion(
+              label: query,
+              lat: locs.first.latitude,
+              lng: locs.first.longitude,
+            ),
+          );
+        }
+      } catch (_) {}
+    }
+
+    if (matches.isEmpty) {
+      final qLower = query.toLowerCase();
+      matches.addAll(
+        presetAreas.where((a) => a.label.toLowerCase().contains(qLower)),
+      );
+    }
+
+    return matches;
   }
 
   Future<void> detectCurrentLocation() async {
@@ -67,8 +184,8 @@ class LocationController extends ChangeNotifier {
       _userLat = pos.latitude;
       _userLng = pos.longitude;
       _hasGpsLock = true;
-      _locationLabel =
-          'GPS (${pos.latitude.toStringAsFixed(2)}, ${pos.longitude.toStringAsFixed(2)})';
+      _hasManualArea = false;
+      _locationLabel = await _resolvePlaceName(pos.latitude, pos.longitude);
       _statusMessage = null;
     } catch (_) {
       _statusMessage = 'Unable to fetch GPS right now. Using area estimate.';
@@ -76,6 +193,63 @@ class LocationController extends ChangeNotifier {
 
     _isLocating = false;
     notifyListeners();
+  }
+
+  Future<String> _resolvePlaceName(double lat, double lng) async {
+    if (!kIsWeb) {
+      try {
+        final placemarks = await placemarkFromCoordinates(lat, lng);
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          final parts = <String>[
+            if ((p.subLocality ?? '').trim().isNotEmpty)
+              p.subLocality!.trim(),
+            if ((p.locality ?? '').trim().isNotEmpty) p.locality!.trim(),
+          ];
+          if (parts.isNotEmpty) return parts.join(', ');
+          if ((p.administrativeArea ?? '').trim().isNotEmpty) {
+            return p.administrativeArea!.trim();
+          }
+        }
+      } catch (_) {}
+    }
+
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=$lat&lon=$lng&zoom=14&addressdetails=1',
+      );
+      final resp = await http
+          .get(uri, headers: const {'User-Agent': 'ServiceEpicApp/1.0'})
+          .timeout(const Duration(seconds: 4));
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
+        final addr = data['address'] as Map<String, dynamic>?;
+        if (addr != null) {
+          final area = (addr['suburb'] ??
+                  addr['neighbourhood'] ??
+                  addr['town'] ??
+                  addr['city_district'] ??
+                  '')
+              .toString()
+              .trim();
+          final city = (addr['city'] ??
+                  addr['state_district'] ??
+                  addr['state'] ??
+                  '')
+              .toString()
+              .trim();
+          final parts = <String>[
+            if (area.isNotEmpty) area,
+            if (city.isNotEmpty && city != area) city,
+          ];
+          if (parts.isNotEmpty) return parts.join(', ');
+        }
+        final display = (data['name'] ?? '').toString().trim();
+        if (display.isNotEmpty) return display;
+      }
+    } catch (_) {}
+
+    return 'Current Location';
   }
 
   /// Computes distance in kilometers between the user's current coordinates and

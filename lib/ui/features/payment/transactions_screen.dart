@@ -539,9 +539,11 @@ class _WalletTopUpSheetState extends State<_WalletTopUpSheet> {
     final textTheme = Theme.of(context).textTheme;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + bottomInset),
-      child: SingleChildScrollView(
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 20 + bottomInset),
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -881,6 +883,7 @@ class _WalletTopUpSheetState extends State<_WalletTopUpSheet> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
