@@ -119,6 +119,9 @@ class Validators {
     if (trimmed.length < 2) {
       return 'Full name must be at least 2 characters.';
     }
+    if (RegExp(r'[0-9]').hasMatch(trimmed)) {
+      return 'Full name cannot contain numbers.';
+    }
     if (!RegExp(r'[a-zA-Z].*[a-zA-Z]').hasMatch(trimmed)) {
       return 'Enter your real name (letters required).';
     }

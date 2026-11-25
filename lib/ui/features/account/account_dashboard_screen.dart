@@ -57,16 +57,22 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
               children: [
                 TextFormField(
                   controller: nameCtrl,
-                  validator: (v) =>
-                      Validators.requiredText(v, fieldName: 'Full name'),
-                  decoration: const InputDecoration(labelText: 'Full Name'),
+                  validator: Validators.fullName,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    errorMaxLines: 2,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
                   controller: emailCtrl,
                   validator: Validators.email,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email ID'),
+                  decoration: const InputDecoration(
+                    labelText: 'Email ID',
+                    errorMaxLines: 2,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextFormField(
