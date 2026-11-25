@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:uuid/uuid.dart';
 
@@ -37,28 +38,57 @@ class AuthRepository {
     }
 
     try {
-      await GoogleSignIn.instance.initialize();
-      final googleAccount = await GoogleSignIn.instance.authenticate();
-      final idToken = googleAccount.authentication.idToken;
+      String uid;
+      String? token;
+      String displayName;
+      String email;
 
-      String uid = googleAccount.id;
-      String? token = idToken;
-
-      if (AppEnv.firebaseInitialized && idToken != null) {
-        final credential = GoogleAuthProvider.credential(idToken: idToken);
+      if (kIsWeb) {
+        if (!AppEnv.firebaseInitialized) {
+          return const Failure(
+            NetworkException('Firebase is not initialized on this browser.'),
+          );
+        }
         final userCred =
-            await FirebaseAuth.instance.signInWithCredential(credential);
-        uid = userCred.user?.uid ?? uid;
-        token = await userCred.user?.getIdToken() ?? token;
+            await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+        final fbUser = userCred.user;
+        if (fbUser == null) {
+          return const Failure(
+            ValidationException('Google Sign-In did not return a user.'),
+          );
+        }
+        uid = fbUser.uid;
+        token = await fbUser.getIdToken();
+        email = (fbUser.email ?? 'user@gmail.com').toLowerCase();
+        displayName = fbUser.displayName?.trim().isNotEmpty == true
+            ? fbUser.displayName!.trim()
+            : email.split('@').first;
+      } else {
+        await GoogleSignIn.instance.initialize();
+        final googleAccount = await GoogleSignIn.instance.authenticate();
+        final idToken = googleAccount.authentication.idToken;
+
+        uid = googleAccount.id;
+        token = idToken;
+        email = googleAccount.email.toLowerCase();
+        displayName = googleAccount.displayName?.trim().isNotEmpty == true
+            ? googleAccount.displayName!.trim()
+            : email.split('@').first;
+
+        if (AppEnv.firebaseInitialized && idToken != null) {
+          final credential = GoogleAuthProvider.credential(idToken: idToken);
+          final userCred =
+              await FirebaseAuth.instance.signInWithCredential(credential);
+          uid = userCred.user?.uid ?? uid;
+          token = await userCred.user?.getIdToken() ?? token;
+        }
       }
 
       final demo = SeedData.demoUser();
       final profile = UserProfile(
         id: uid,
-        fullName: googleAccount.displayName?.trim().isNotEmpty == true
-            ? googleAccount.displayName!.trim()
-            : googleAccount.email.split('@').first,
-        email: googleAccount.email.toLowerCase(),
+        fullName: displayName,
+        email: email,
         phone: demo.phone,
         city: demo.city,
         walletBalance: demo.walletBalance,
@@ -82,6 +112,18 @@ class AuthRepository {
         ),
       );
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'unauthorized-domain') {
+        return const Failure(
+          ValidationException(
+            'Add garvkataria23.github.io to Firebase Console → Authentication → Authorized domains, or use One-Tap Demo Client Login below.',
+          ),
+        );
+      }
+      if (e.code == 'popup-closed-by-user') {
+        return const Failure(
+          ValidationException('Google Sign-In popup was closed.'),
+        );
+      }
       return Failure(
         ValidationException(e.message ?? 'Google authentication failed.'),
       );
