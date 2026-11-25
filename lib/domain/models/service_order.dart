@@ -5,6 +5,7 @@ enum OrderStatus {
   confirmed('confirmed', 'Confirmed'),
   scheduled('scheduled', 'Scheduled'),
   completed('completed', 'Completed'),
+  cancelled('cancelled', 'Cancelled'),
   returnRequested('return_requested', 'Return / Refund Requested'),
   replacementScheduled('replacement_scheduled', 'Replacement Scheduled'),
   refunded('refunded', 'Refunded');

@@ -202,31 +202,110 @@ class CartOrderRepository {
     return Success(order);
   }
 
-  Future<ServiceOrder> requestReturnOrReplace({
+  Future<ServiceOrder> cancelOrder({
     required ServiceOrder order,
-    required bool isReplacement,
+    required UserProfile user,
     required String reason,
   }) async {
+    final trimmed = reason.trim();
     final updated = order.copyWith(
-      status: isReplacement
-          ? OrderStatus.replacementScheduled
-          : OrderStatus.returnRequested,
-      returnOrReplaceReason: reason.trim(),
+      status: OrderStatus.cancelled,
+      returnOrReplaceReason: 'Cancelled: $trimmed',
     );
     await _database.upsertOrder(updated);
-
+    await _paymentRepository.refundEscrowForReference(
+      order.id,
+      user: user,
+      reason: trimmed,
+    );
     await _paymentRepository.addNotification(
       AppNotification(
         id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
-        title: isReplacement
-            ? 'Free Replacement Scheduled (${order.id})'
-            : 'Return & Refund Requested (${order.id})',
-        body: 'Reason: ${reason.trim()}',
+        title: 'Order Cancelled & Refunded (${order.id})',
+        body: 'Full amount refunded to your Epic Wallet. Reason: $trimmed',
         type: NotificationType.status,
         createdAt: DateTime.now(),
       ),
     );
+    return updated;
+  }
 
+  Future<ServiceOrder> rescheduleOrderSlot({
+    required ServiceOrder order,
+    required String newSlot,
+  }) async {
+    final updated = order.copyWith(
+      preferredSlot: newSlot,
+      status: order.status == OrderStatus.confirmed
+          ? OrderStatus.scheduled
+          : order.status,
+    );
+    await _database.upsertOrder(updated);
+    await _paymentRepository.addNotification(
+      AppNotification(
+        id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
+        title: 'Arrival Slot Updated (${order.id})',
+        body: 'New arrival window: $newSlot (PIN: ${updated.jobStartPin}).',
+        type: NotificationType.status,
+        createdAt: DateTime.now(),
+      ),
+    );
+    return updated;
+  }
+
+  Future<ServiceOrder> requestReturnOrReplace({
+    required ServiceOrder order,
+    required bool isReplacement,
+    required String reason,
+    UserProfile? user,
+    String? newSlot,
+  }) async {
+    final trimmed = reason.trim();
+    if (isReplacement) {
+      final freshPin = '${1000 + _random.nextInt(8999)}';
+      final updated = order.copyWith(
+        status: OrderStatus.replacementScheduled,
+        returnOrReplaceReason: trimmed,
+        preferredSlot: newSlot ?? order.preferredSlot,
+        jobStartPin: freshPin,
+        progressStep: 1,
+      );
+      await _database.upsertOrder(updated);
+      await _paymentRepository.addNotification(
+        AppNotification(
+          id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
+          title: 'Free Replacement Scheduled (${order.id})',
+          body:
+              'Slot: ${updated.preferredSlot} • New PIN: $freshPin • Reason: $trimmed',
+          type: NotificationType.status,
+          createdAt: DateTime.now(),
+        ),
+      );
+      return updated;
+    }
+
+    final updated = order.copyWith(
+      status: OrderStatus.refunded,
+      returnOrReplaceReason: trimmed,
+    );
+    await _database.upsertOrder(updated);
+    final activeUser = user ?? _storage.loadUserProfile();
+    if (activeUser != null) {
+      await _paymentRepository.refundEscrowForReference(
+        order.id,
+        user: activeUser,
+        reason: trimmed,
+      );
+    }
+    await _paymentRepository.addNotification(
+      AppNotification(
+        id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
+        title: 'Return & Instant Refund Processed (${order.id})',
+        body: 'Refund credited to Epic Wallet. Reason: $trimmed',
+        type: NotificationType.status,
+        createdAt: DateTime.now(),
+      ),
+    );
     return updated;
   }
 

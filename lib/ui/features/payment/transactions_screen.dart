@@ -7,6 +7,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/repositories/payment_repository.dart';
 import '../../../domain/models/payment_transaction.dart';
+import '../../core/widgets/confirmation_banner.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../auth/auth_view_model.dart';
 
@@ -18,6 +19,8 @@ class TransactionsScreen extends StatefulWidget {
 }
 
 class _TransactionsScreenState extends State<TransactionsScreen> {
+  ConfirmationBannerData? _banner;
+
   @override
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
@@ -42,6 +45,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_banner != null)
+            ConfirmationBanner(
+              data: _banner!,
+              onDismiss: () => setState(() => _banner = null),
+            ),
           // Wallet Balance Card
           Container(
             padding: const EdgeInsets.all(18),
@@ -81,14 +89,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   onPressed: () async {
                     await authVm.topUpWallet(500);
                     if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Added ${currency.formatExact(500)} to your wallet!',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    setState(() {
+                      _banner = ConfirmationBannerData(
+                        title: 'Wallet Topped Up',
+                        badgeText: '+${currency.formatExact(500)}',
+                        subtitle:
+                            'Added ${currency.formatExact(500)} to your Epic Wallet. Available balance: ${currency.formatExact(authVm.currentUser?.walletBalance ?? 0)}.',
+                        tone: ConfirmationTone.success,
+                      );
+                    });
                   },
                   icon: const Icon(Icons.add_rounded),
                   label: Text('Top Up ${currency.format(500)}'),

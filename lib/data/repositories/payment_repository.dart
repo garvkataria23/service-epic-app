@@ -164,4 +164,46 @@ class PaymentRepository {
       );
     }
   }
+
+  /// Marks any active escrow/completed transaction for [referenceId] (orderId or
+  /// requestId) as refunded and credits the full amount back to the user's
+  /// Epic Wallet. Returns the refunded USD base amount (0.0 if none matched).
+  Future<double> refundEscrowForReference(
+    String referenceId, {
+    required UserProfile user,
+    required String reason,
+  }) async {
+    final txns = _storage.loadTransactions();
+    var refundedAmount = 0.0;
+    for (var i = 0; i < txns.length; i++) {
+      if (txns[i].requestId == referenceId &&
+          (txns[i].status == EscrowStatus.heldInEscrow ||
+              txns[i].status == EscrowStatus.released)) {
+        txns[i] = txns[i].copyWith(status: EscrowStatus.refunded);
+        refundedAmount += txns[i].totalAmount;
+      }
+    }
+
+    if (refundedAmount > 0) {
+      await _storage.saveTransactions(txns);
+      final latestUser = _storage.loadUserProfile() ?? user;
+      final newBalance = double.parse(
+        (latestUser.walletBalance + refundedAmount).toStringAsFixed(2),
+      );
+      await _storage.saveUserProfile(
+        latestUser.copyWith(walletBalance: newBalance),
+      );
+      await addNotification(
+        AppNotification(
+          id: 'NOTIF-${_uuid.v4().substring(0, 6)}',
+          title: 'Escrow Refunded ($referenceId)',
+          body: 'Credited back to your Epic Wallet. Reason: $reason',
+          type: NotificationType.payment,
+          createdAt: DateTime.now(),
+          relatedRequestId: referenceId,
+        ),
+      );
+    }
+    return double.parse(refundedAmount.toStringAsFixed(2));
+  }
 }

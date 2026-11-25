@@ -16,6 +16,7 @@ import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/provider_response.dart';
 import '../../../domain/models/service_request.dart';
 import '../../../domain/models/user_profile.dart';
+import '../../core/widgets/confirmation_banner.dart';
 import '../auth/auth_view_model.dart';
 import '../cart/cart_view_model.dart';
 
@@ -955,6 +956,19 @@ class _PaymentReceiptScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    ConfirmationBanner(
+                      data: ConfirmationBannerData(
+                        title: isOrder
+                            ? 'Order Confirmed & Protected'
+                            : 'Quote Accepted & Escrow Locked',
+                        badgeText: isOrder ? 'PIN: ${jobStartPin ?? '----'}' : 'ESCROW ACTIVE',
+                        subtitle: isOrder
+                            ? 'Booked for ${preferredSlot ?? '10:00 AM – 12:00 PM'}. You can reschedule or cancel for an instant wallet refund before work starts.'
+                            : 'Funds are safely held in Escrow and released only after you mark the job completed.',
+                        tone: ConfirmationTone.success,
+                      ),
+                      onDismiss: () {},
+                    ),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(

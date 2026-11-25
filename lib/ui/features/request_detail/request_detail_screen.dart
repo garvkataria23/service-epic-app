@@ -8,9 +8,11 @@ import '../../../data/repositories/payment_repository.dart';
 import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/provider_response.dart';
 import '../../../domain/models/service_request.dart';
+import '../../core/widgets/confirmation_banner.dart';
 import '../../core/widgets/empty_state_widget.dart';
 import '../../core/widgets/error_retry_widget.dart';
 import '../../core/widgets/status_badge.dart';
+import '../auth/auth_view_model.dart';
 import '../compare/compare_screen.dart';
 import '../payment/checkout_screen.dart';
 import 'request_detail_view_model.dart';
@@ -33,6 +35,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _quoteSearchController = TextEditingController();
+  ConfirmationBannerData? _banner;
 
   @override
   void initState() {
@@ -129,10 +132,108 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
       );
       if (ok && mounted) {
         widget.onRequestChanged();
-        _showSnack('Completed! Escrow released & review saved.');
+        setState(() {
+          _banner = ConfirmationBannerData(
+            title: 'Job Completed & Escrow Released',
+            badgeText: '${selectedRating.toStringAsFixed(1)} ★',
+            subtitle:
+                '${req.id} marked completed. Escrow funds released to provider and review saved.',
+            tone: ConfirmationTone.success,
+          );
+        });
       }
     }
     reviewController.dispose();
+  }
+
+  Future<void> _openCancelInProgressDialog(
+    RequestDetailViewModel vm,
+    ServiceRequest req,
+  ) async {
+    final user = context.read<AuthViewModel>().currentUser;
+    if (user == null) return;
+    final reasons = [
+      'Specialist unavailable / delayed',
+      'Scope changed before work began',
+      'Found an alternative provider',
+    ];
+    var selectedReason = reasons.first;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Cancel & Refund Escrow'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Escrow funds for this request will be refunded instantly to your Epic Wallet.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              ...reasons.map(
+                (r) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    selectedReason == r
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                    size: 18,
+                    color: selectedReason == r
+                        ? Theme.of(ctx).colorScheme.primary
+                        : null,
+                  ),
+                  title: Text(r, style: const TextStyle(fontSize: 13)),
+                  onTap: () => setDialogState(() => selectedReason = r),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep Active'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cancel & Refund'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final paymentRepo = context.read<PaymentRepository>();
+      final currency = context.read<CurrencyController>();
+      final refunded = await paymentRepo.refundEscrowForReference(
+        req.id,
+        user: user,
+        reason: selectedReason,
+      );
+      final ok = await vm.cancelInProgressWithReason(selectedReason);
+      if (ok && mounted) {
+        context.read<AuthViewModel>().refreshUserFromStorage();
+        widget.onRequestChanged();
+        setState(() {
+          _banner = ConfirmationBannerData(
+            title: 'Request Cancelled & Escrow Refunded',
+            badgeText: refunded > 0
+                ? '+${currency.formatExact(refunded)} WALLET'
+                : 'CANCELLED',
+            subtitle: refunded > 0
+                ? '${req.id} cancelled and ${currency.formatExact(refunded)} refunded to your Epic Wallet.'
+                : '${req.id} has been cancelled.',
+            tone: ConfirmationTone.warning,
+            icon: Icons.cancel_rounded,
+          );
+        });
+      }
+    }
   }
 
   Future<void> _openNegotiationDialog(
@@ -345,6 +446,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                                       final ok = await vm.acceptQuote(q);
                                       if (ok && mounted) {
                                         widget.onRequestChanged();
+                                        setState(() {
+                                          _banner = ConfirmationBannerData(
+                                            title:
+                                                'Quote Accepted & Escrow Locked',
+                                            badgeText: q.providerName,
+                                            subtitle:
+                                                '${req.id} awarded to ${q.providerName}. Funds are protected in Escrow.',
+                                            tone: ConfirmationTone.success,
+                                          );
+                                        });
                                       }
                                     },
                                   ),
@@ -451,6 +562,11 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
           ListView(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
             children: [
+              if (_banner != null)
+                ConfirmationBanner(
+                  data: _banner!,
+                  onDismiss: () => setState(() => _banner = null),
+                ),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -565,7 +681,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                       icon: const Icon(Icons.auto_awesome_rounded),
                       label: const Text('Get More Quotes'),
                     ),
-                  if (req.status == RequestStatus.inProgress)
+                  if (req.status == RequestStatus.inProgress) ...[
                     FilledButton.icon(
                       onPressed: vm.isActionBusy
                           ? null
@@ -573,6 +689,17 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                       icon: const Icon(Icons.check_circle_rounded),
                       label: const Text('Mark Completed & Release Escrow'),
                     ),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                      ),
+                      onPressed: vm.isActionBusy
+                          ? null
+                          : () => _openCancelInProgressDialog(vm, req),
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancel & Refund Escrow'),
+                    ),
+                  ],
                   if (req.status == RequestStatus.open ||
                       req.status == RequestStatus.quoted)
                     OutlinedButton.icon(
@@ -585,7 +712,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                               final ok = await vm.cancelRequest();
                               if (ok && mounted) {
                                 widget.onRequestChanged();
-                                _showSnack('Request cancelled.');
+                                setState(() {
+                                  _banner = ConfirmationBannerData(
+                                    title: 'Request Cancelled',
+                                    badgeText: req.id,
+                                    subtitle:
+                                        'Your service request ${req.id} has been cancelled. You can reopen it anytime.',
+                                    tone: ConfirmationTone.warning,
+                                    icon: Icons.cancel_rounded,
+                                  );
+                                });
                               }
                             },
                       icon: const Icon(Icons.cancel_outlined),
@@ -599,7 +735,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                               final ok = await vm.reopenRequest();
                               if (ok && mounted) {
                                 widget.onRequestChanged();
-                                _showSnack('Request reopened.');
+                                setState(() {
+                                  _banner = ConfirmationBannerData(
+                                    title: 'Request Reopened',
+                                    badgeText: req.id,
+                                    subtitle:
+                                        '${req.id} is active again and visible to providers.',
+                                    tone: ConfirmationTone.info,
+                                  );
+                                });
                               }
                             },
                       icon: const Icon(Icons.refresh_rounded),

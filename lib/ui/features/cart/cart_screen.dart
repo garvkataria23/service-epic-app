@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../domain/models/payment_transaction.dart';
 import '../../../domain/models/service_order.dart';
+import '../../core/widgets/confirmation_banner.dart';
 import '../../core/widgets/empty_state_widget.dart';
+import '../auth/auth_view_model.dart';
 import '../payment/checkout_screen.dart';
 import 'cart_view_model.dart';
 
@@ -21,6 +24,14 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  ConfirmationBannerData? _banner;
+
+  static const List<String> _timeSlots = [
+    '9:00 AM – 11:00 AM',
+    '10:00 AM – 12:00 PM',
+    '2:00 PM – 4:00 PM',
+    '5:00 PM – 7:00 PM',
+  ];
 
   @override
   void initState() {
@@ -121,25 +132,196 @@ class _CartScreenState extends State<CartScreen>
       final fullReason = notesCtrl.text.trim().isEmpty
           ? selectedReason
           : '$selectedReason — ${notesCtrl.text.trim()}';
-      await vm.requestReturnOrReplace(
+      final authVm = context.read<AuthViewModel>();
+      final currency = context.read<CurrencyController>();
+      final updated = await vm.requestReturnOrReplace(
         order: order,
         isReplacement: isReplacement,
         reason: fullReason,
+        user: authVm.currentUser,
       );
+      authVm.refreshUserFromStorage();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isReplacement
-                  ? 'Free replacement scheduled for ${order.id}!'
-                  : 'Return & refund request submitted for ${order.id}.',
-            ),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        setState(() {
+          _banner = isReplacement
+              ? ConfirmationBannerData(
+                  title: 'Free Replacement Scheduled',
+                  badgeText: 'NEW PIN: ${updated.jobStartPin}',
+                  subtitle:
+                      'Order ${updated.id} reassigned for ${updated.preferredSlot}. Share PIN ${updated.jobStartPin} with the new specialist.',
+                  tone: ConfirmationTone.info,
+                )
+              : ConfirmationBannerData(
+                  title: 'Return & Instant Refund Processed',
+                  badgeText: currency.formatExact(updated.totalAmount),
+                  subtitle:
+                      'Order ${updated.id} refunded to your Epic Wallet. Ledger updated automatically.',
+                  tone: ConfirmationTone.warning,
+                );
+        });
       }
     }
     notesCtrl.dispose();
+  }
+
+  Future<void> _openCancelOrderDialog(
+    CartViewModel vm,
+    ServiceOrder order,
+  ) async {
+    final user = context.read<AuthViewModel>().currentUser;
+    if (user == null) return;
+    final reasons = [
+      'Booked by mistake / wrong service',
+      'Found a better arrival slot',
+      'No longer needed today',
+      'Want to change package scope',
+    ];
+    var selectedReason = reasons.first;
+    final notesCtrl = TextEditingController();
+    final currency = context.read<CurrencyController>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Cancel Order & Refund'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cancel ${order.id} before work starts? Full ${currency.formatExact(order.totalAmount)} will be refunded instantly to your Epic Wallet.',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ...reasons.map(
+                  (r) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      selectedReason == r
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_off_rounded,
+                      size: 18,
+                      color: selectedReason == r
+                          ? Theme.of(ctx).colorScheme.primary
+                          : null,
+                    ),
+                    title: Text(r, style: const TextStyle(fontSize: 13)),
+                    onTap: () => setDialogState(() => selectedReason = r),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: notesCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Additional notes (optional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep Order'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Cancel & Refund'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final fullReason = notesCtrl.text.trim().isEmpty
+          ? selectedReason
+          : '$selectedReason — ${notesCtrl.text.trim()}';
+      await vm.cancelOrder(order: order, user: user, reason: fullReason);
+      if (!mounted) return;
+      context.read<AuthViewModel>().refreshUserFromStorage();
+      setState(() {
+        _banner = ConfirmationBannerData(
+          title: 'Order Cancelled & Refunded',
+          badgeText: '+${currency.formatExact(order.totalAmount)} WALLET',
+          subtitle:
+              '${order.id} has been cancelled and ${currency.formatExact(order.totalAmount)} was credited back to your Epic Wallet.',
+          tone: ConfirmationTone.warning,
+          icon: Icons.cancel_rounded,
+        );
+      });
+    }
+    notesCtrl.dispose();
+  }
+
+  Future<void> _openRescheduleDialog(
+    CartViewModel vm,
+    ServiceOrder order,
+  ) async {
+    var chosen = _timeSlots.contains(order.preferredSlot)
+        ? order.preferredSlot
+        : _timeSlots.first;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Reschedule Arrival Slot'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pick a new arrival window for ${order.id}:',
+                style: const TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _timeSlots.map((slot) {
+                  return ChoiceChip(
+                    label: Text(slot),
+                    selected: chosen == slot,
+                    onSelected: (_) => setDialogState(() => chosen = slot),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Confirm Slot'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final updated = await vm.rescheduleOrderSlot(order: order, newSlot: chosen);
+      if (!mounted) return;
+      setState(() {
+        _banner = ConfirmationBannerData(
+          title: 'Arrival Slot Updated',
+          badgeText: updated.preferredSlot,
+          subtitle:
+              'Order ${updated.id} rescheduled to ${updated.preferredSlot}. Job-Start PIN remains ${updated.jobStartPin}.',
+          tone: ConfirmationTone.info,
+          icon: Icons.schedule_rounded,
+        );
+      });
+    }
   }
 
   @override
@@ -346,7 +528,8 @@ class _CartScreenState extends State<CartScreen>
                         Expanded(
                           child: FilledButton.icon(
                             onPressed: () async {
-                              await Navigator.of(context).push<void>(
+                              final txn = await Navigator.of(context)
+                                  .push<PaymentTransaction>(
                                 MaterialPageRoute(
                                   builder: (_) => CheckoutScreen(
                                     cartItems: List.of(vm.items),
@@ -357,6 +540,18 @@ class _CartScreenState extends State<CartScreen>
                               await vm.refreshOrders();
                               if (mounted && vm.items.isEmpty) {
                                 _tabController.animateTo(1);
+                                if (txn != null && vm.orders.isNotEmpty) {
+                                  final latest = vm.orders.first;
+                                  setState(() {
+                                    _banner = ConfirmationBannerData(
+                                      title: 'Order Confirmed & Protected',
+                                      badgeText: 'PIN: ${latest.jobStartPin}',
+                                      subtitle:
+                                          '${latest.id} booked for ${latest.preferredSlot}. Paid ${currency.formatExact(latest.totalAmount)} in Escrow.',
+                                      tone: ConfirmationTone.success,
+                                    );
+                                  });
+                                }
                               }
                             },
                             icon: const Icon(Icons.flash_on_rounded),
@@ -378,18 +573,29 @@ class _CartScreenState extends State<CartScreen>
                   subtitle:
                       'Orders purchased via Buy Now or Cart will appear here with Return & Replacement options.',
                 )
-              : ListView.separated(
+              : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: vm.orders.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, idx) {
+                  itemCount: vm.orders.length + (_banner != null ? 1 : 0),
+                  itemBuilder: (context, rawIdx) {
+                    if (_banner != null && rawIdx == 0) {
+                      return ConfirmationBanner(
+                        data: _banner!,
+                        onDismiss: () => setState(() => _banner = null),
+                      );
+                    }
+                    final idx = _banner != null ? rawIdx - 1 : rawIdx;
                     final order = vm.orders[idx];
+                    final canCancelOrReschedule = order.progressStep < 2 &&
+                        (order.status == OrderStatus.confirmed ||
+                            order.status == OrderStatus.scheduled);
                     final canReturnOrReplace =
                         order.status == OrderStatus.confirmed ||
                             order.status == OrderStatus.scheduled ||
                             order.status == OrderStatus.completed;
 
-                    return Card(
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Card(
                       child: Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(
@@ -520,8 +726,25 @@ class _CartScreenState extends State<CartScreen>
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton.icon(
-                                  onPressed: () =>
-                                      vm.advanceOrderProgress(order),
+                                  onPressed: () async {
+                                    final updated =
+                                        await vm.advanceOrderProgress(order);
+                                    if (!mounted) return;
+                                    final stageName = ServiceOrder
+                                        .progressStages[updated.progressStep];
+                                    setState(() {
+                                      _banner = ConfirmationBannerData(
+                                        title: updated.progressStep >= 4
+                                            ? 'Order Completed & Escrow Released!'
+                                            : 'Order Progress Updated',
+                                        badgeText: stageName,
+                                        subtitle: updated.progressStep >= 4
+                                            ? '${updated.id} completed! Escrow payment of ${currency.formatExact(updated.totalAmount)} has been released to the provider.'
+                                            : '${updated.id} moved to stage "$stageName".',
+                                        tone: ConfirmationTone.success,
+                                      );
+                                    });
+                                  },
                                   icon: const Icon(
                                     Icons.fast_forward_rounded,
                                     size: 16,
@@ -548,8 +771,41 @@ class _CartScreenState extends State<CartScreen>
                                 ),
                               ),
                             ],
+                            if (canCancelOrReschedule) ...[
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _openRescheduleDialog(vm, order),
+                                      icon: const Icon(
+                                        Icons.schedule_rounded,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Reschedule'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: AppColors.error,
+                                      ),
+                                      onPressed: () =>
+                                          _openCancelOrderDialog(vm, order),
+                                      icon: const Icon(
+                                        Icons.cancel_outlined,
+                                        size: 16,
+                                      ),
+                                      label: const Text('Cancel Order'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                             if (canReturnOrReplace) ...[
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 10),
                               Row(
                                 children: [
                                   Expanded(
@@ -589,6 +845,7 @@ class _CartScreenState extends State<CartScreen>
                           ],
                         ),
                       ),
+                    ),
                     );
                   },
                 ),
@@ -602,6 +859,7 @@ class _CartScreenState extends State<CartScreen>
       OrderStatus.confirmed => AppColors.primary,
       OrderStatus.scheduled => AppColors.info,
       OrderStatus.completed => AppColors.success,
+      OrderStatus.cancelled => AppColors.error,
       OrderStatus.returnRequested => AppColors.warning,
       OrderStatus.replacementScheduled => AppColors.accentAmber,
       OrderStatus.refunded => AppColors.error,

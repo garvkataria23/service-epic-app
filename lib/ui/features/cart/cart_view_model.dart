@@ -4,6 +4,7 @@ import '../../../data/repositories/cart_order_repository.dart';
 import '../../../domain/models/cart_item.dart';
 import '../../../domain/models/service_item.dart';
 import '../../../domain/models/service_order.dart';
+import '../../../domain/models/user_profile.dart';
 
 class CartViewModel extends ChangeNotifier {
   CartViewModel({required CartOrderRepository repository})
@@ -55,23 +56,57 @@ class CartViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> requestReturnOrReplace({
+  Future<ServiceOrder> cancelOrder({
     required ServiceOrder order,
-    required bool isReplacement,
+    required UserProfile user,
     required String reason,
   }) async {
-    await _repository.requestReturnOrReplace(
+    final updated = await _repository.cancelOrder(
       order: order,
-      isReplacement: isReplacement,
+      user: user,
       reason: reason,
     );
     _orders = await _repository.getOrders();
     notifyListeners();
+    return updated;
   }
 
-  Future<void> advanceOrderProgress(ServiceOrder order) async {
-    await _repository.advanceOrderProgress(order);
+  Future<ServiceOrder> rescheduleOrderSlot({
+    required ServiceOrder order,
+    required String newSlot,
+  }) async {
+    final updated = await _repository.rescheduleOrderSlot(
+      order: order,
+      newSlot: newSlot,
+    );
     _orders = await _repository.getOrders();
     notifyListeners();
+    return updated;
+  }
+
+  Future<ServiceOrder> requestReturnOrReplace({
+    required ServiceOrder order,
+    required bool isReplacement,
+    required String reason,
+    UserProfile? user,
+    String? newSlot,
+  }) async {
+    final updated = await _repository.requestReturnOrReplace(
+      order: order,
+      isReplacement: isReplacement,
+      reason: reason,
+      user: user,
+      newSlot: newSlot,
+    );
+    _orders = await _repository.getOrders();
+    notifyListeners();
+    return updated;
+  }
+
+  Future<ServiceOrder> advanceOrderProgress(ServiceOrder order) async {
+    final updated = await _repository.advanceOrderProgress(order);
+    _orders = await _repository.getOrders();
+    notifyListeners();
+    return updated;
   }
 }

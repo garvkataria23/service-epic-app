@@ -245,6 +245,12 @@ class RequestDetailViewModel extends ChangeNotifier {
         subtitle: 'Cancelled by client',
       );
 
+  Future<bool> cancelInProgressWithReason(String reason) => _transition(
+        RequestStatus.cancelled,
+        title: 'Cancelled & Escrow Refunded',
+        subtitle: 'Reason: ${reason.trim()}',
+      );
+
   Future<bool> reopenRequest() => _transition(
         RequestStatus.open,
         title: 'Request Reopened',
