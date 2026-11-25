@@ -300,32 +300,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Expanded(child: Text('3D-Secure Verification')),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Confirm payment of ${currency.formatExact(_total)} via $methodLabel.',
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Demo OTP: 1234',
-                style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                decoration: InputDecoration(
-                  labelText: 'Enter 4-digit OTP',
-                  errorText: otpError,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Confirm payment of ${currency.formatExact(_total)} via $methodLabel.',
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  'Demo OTP: 1234',
+                  style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: otpController,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  decoration: InputDecoration(
+                    labelText: 'Enter 4-digit OTP',
+                    errorText: otpError,
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(

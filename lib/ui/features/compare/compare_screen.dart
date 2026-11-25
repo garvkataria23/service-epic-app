@@ -58,11 +58,12 @@ class CompareScreen extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: list.map((srv) {
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: list.map((srv) {
           final badges = <String>[];
           if (srv.basePrice == lowestPrice) badges.add('Best Value');
           if (srv.rating == highestRating) badges.add('Top Rated');
@@ -167,6 +168,7 @@ class CompareScreen extends StatelessWidget {
           );
         }).toList(),
       ),
+      ),
     );
   }
 
@@ -180,11 +182,12 @@ class CompareScreen extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: list.map((q) {
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: list.map((q) {
           final withinBudget =
               clientMaxBudget == null || q.quotedPrice <= clientMaxBudget!;
           return Container(
@@ -265,6 +268,7 @@ class CompareScreen extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
       ),
     );
   }

@@ -306,6 +306,7 @@ class _RequestCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
+                    flex: 3,
                     child: Wrap(
                       spacing: 6,
                       runSpacing: 4,
@@ -354,7 +355,10 @@ class _RequestCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  StatusBadge.fromRequestStatus(req.status),
+                  Flexible(
+                    flex: 2,
+                    child: StatusBadge.fromRequestStatus(req.status),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),

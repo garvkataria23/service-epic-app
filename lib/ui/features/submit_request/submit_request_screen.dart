@@ -264,11 +264,13 @@ class _SubmitRequestScreenState extends State<SubmitRequestScreen> {
                             color: colors.primary,
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            'Smart Brief Auto-Structurer',
-                            style: textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: colors.primary,
+                          Expanded(
+                            child: Text(
+                              'Smart Brief Auto-Structurer',
+                              style: textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: colors.primary,
+                              ),
                             ),
                           ),
                         ],

@@ -598,10 +598,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           StatusBadge.fromRequestStatus(req.status),
-                          const Spacer(),
                           Text(
                             req.urgency.label,
                             style: textTheme.labelSmall?.copyWith(
@@ -959,11 +961,17 @@ class _QuoteCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                StatusBadge.fromQuoteStatus(quote.status),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: StatusBadge.fromQuoteStatus(quote.status),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   context.watch<CurrencyController>().format(quote.quotedPrice),
@@ -972,7 +980,6 @@ class _QuoteCard extends StatelessWidget {
                     color: colors.primary,
                   ),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -992,7 +999,6 @@ class _QuoteCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Spacer(),
                 Text(
                   quote.estimatedDuration,
                   style: textTheme.bodySmall?.copyWith(
@@ -1028,14 +1034,16 @@ class _QuoteCard extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 OutlinedButton.icon(
                   onPressed: isBusy ? null : onMessage,
                   icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
                   label: Text('Chat (${quote.messages.length})'),
                 ),
-                const Spacer(),
                 if (canDecide &&
                     (quote.status == QuoteStatus.pending ||
                         quote.status == QuoteStatus.negotiating)) ...[
@@ -1043,7 +1051,6 @@ class _QuoteCard extends StatelessWidget {
                     onPressed: isBusy ? null : onDecline,
                     child: const Text('Decline'),
                   ),
-                  const SizedBox(width: 6),
                   FilledButton(
                     onPressed: isBusy ? null : onAccept,
                     child: const Text('Accept Quote'),

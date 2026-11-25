@@ -683,44 +683,54 @@ class _AccountDashboardScreenState extends State<AccountDashboardScreen> {
                               ],
                             ],
                           ),
-                          subtitle: Text(user.savedAddresses[i].fullAddress),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Text(user.savedAddresses[i].fullAddress),
                               if (!user.savedAddresses[i].isDefault)
-                                TextButton(
-                                  onPressed: () async {
-                                    final updated = user.savedAddresses
-                                        .asMap()
-                                        .entries
-                                        .map(
-                                          (entry) => SavedAddress(
-                                            id: entry.value.id,
-                                            label: entry.value.label,
-                                            fullAddress:
-                                                entry.value.fullAddress,
-                                            isDefault: entry.key == i,
-                                          ),
-                                        )
-                                        .toList();
-                                    await authVm.updateProfile(
-                                      user.copyWith(savedAddresses: updated),
-                                    );
-                                  },
-                                  child: const Text('Set Default'),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      visualDensity: VisualDensity.compact,
+                                      tapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    onPressed: () async {
+                                      final updated = user.savedAddresses
+                                          .asMap()
+                                          .entries
+                                          .map(
+                                            (entry) => SavedAddress(
+                                              id: entry.value.id,
+                                              label: entry.value.label,
+                                              fullAddress:
+                                                  entry.value.fullAddress,
+                                              isDefault: entry.key == i,
+                                            ),
+                                          )
+                                          .toList();
+                                      await authVm.updateProfile(
+                                        user.copyWith(savedAddresses: updated),
+                                      );
+                                    },
+                                    child: const Text('Set Default'),
+                                  ),
                                 ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded),
-                                onPressed: () async {
-                                  final updated = List<SavedAddress>.from(
-                                    user.savedAddresses,
-                                  )..removeAt(i);
-                                  await authVm.updateProfile(
-                                    user.copyWith(savedAddresses: updated),
-                                  );
-                                },
-                              ),
                             ],
+                          ),
+                          trailing: IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            onPressed: () async {
+                              final updated = List<SavedAddress>.from(
+                                user.savedAddresses,
+                              )..removeAt(i);
+                              await authVm.updateProfile(
+                                user.copyWith(savedAddresses: updated),
+                              );
+                            },
                           ),
                         ),
                       ],

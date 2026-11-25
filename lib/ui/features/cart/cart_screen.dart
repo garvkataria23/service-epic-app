@@ -508,26 +508,35 @@ class _CartScreenState extends State<CartScreen>
                     ),
                     child: Row(
                       children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Cart Subtotal',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colors.onSurfaceVariant,
+                        Flexible(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cart Subtotal',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
                               ),
-                            ),
-                            Text(
-                              currency.formatExact(vm.subtotal),
-                              style: textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: colors.primary,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  currency.formatExact(vm.subtotal),
+                                  maxLines: 1,
+                                  style: textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: colors.primary,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: FilledButton.icon(
                             onPressed: () async {
@@ -558,8 +567,11 @@ class _CartScreenState extends State<CartScreen>
                                 }
                               }
                             },
-                            icon: const Icon(Icons.flash_on_rounded),
-                            label: const Text('Proceed to Buy Now'),
+                            icon: const Icon(Icons.flash_on_rounded, size: 18),
+                            label: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text('Proceed to Buy Now'),
+                            ),
                           ),
                         ),
                       ],
@@ -607,30 +619,38 @@ class _CartScreenState extends State<CartScreen>
                           children: [
                             Row(
                               children: [
-                                Text(
-                                  order.id,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
+                                Expanded(
+                                  child: Text(
+                                    order.id,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 9,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _orderColor(order.status)
-                                        .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    order.status.label,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: _orderColor(order.status),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 9,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: _orderColor(order.status)
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      order.status.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: _orderColor(order.status),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -697,12 +717,16 @@ class _CartScreenState extends State<CartScreen>
                                         color: colors.primary,
                                       ),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        order.preferredSlot,
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                          color: colors.onPrimaryContainer,
+                                      Flexible(
+                                        child: Text(
+                                          order.preferredSlot,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: colors.onPrimaryContainer,
+                                          ),
                                         ),
                                       ),
                                     ],

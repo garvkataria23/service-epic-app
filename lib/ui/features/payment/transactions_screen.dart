@@ -62,19 +62,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    const Expanded(
-                      child: Text(
-                        'ServiceEpic Wallet',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const Text(
+                      'ServiceEpic Wallet',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     FilledButton.tonalIcon(
                       style: FilledButton.styleFrom(
                         visualDensity: VisualDensity.compact,

@@ -514,21 +514,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(
-                          height: 158,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: vm.featuredServices.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 12),
-                            itemBuilder: (context, idx) {
-                              final item = vm.featuredServices[idx];
-                              return _FeaturedServiceCard(
-                                service: item,
-                                onTap: () => _openDetail(vm, item),
-                              );
-                            },
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: vm.featuredServices
+                                  .map(
+                                    (item) => Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: _FeaturedServiceCard(
+                                        service: item,
+                                        onTap: () => _openDetail(vm, item),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
                           ),
                         ),
                       ],
